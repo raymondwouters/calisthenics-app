@@ -63,6 +63,7 @@ export default function Home() {
       if (!res.ok) throw new Error('Generation failed')
       const data = await res.json()
       sessionStorage.setItem('workout-plan', JSON.stringify(data))
+      sessionStorage.setItem('workout-inputs', JSON.stringify({ level, equipment, goal }))
       router.push('/plan')
     } catch {
       setError('Something went wrong. Please try again.')
