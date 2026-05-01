@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 
@@ -8,8 +8,11 @@ export const metadata: Metadata = {
   title: "Calisthenics — Build your plan",
   description: "AI-powered personalized calisthenics workout generator",
   manifest: "/manifest.json",
-  themeColor: "#09090b",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Calisthenics" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
