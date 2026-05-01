@@ -1424,32 +1424,38 @@ Unlocks:
 - handstand push-up progressions
 - wrist-friendly floor alternatives
 
-## Tier 5 — Gym access or weights
+## Tier 5 — Barbell & plates (home)
 
 Unlocks:
 
-- accessory strength work
-- controlled loading
-- hypertrophy support
-- plateau support
-- safer loading for weak links
+- deadlift
+- barbell back squat
+- barbell front squat
+- barbell overhead press
+- barbell row
+- bench press (with bench)
+- Romanian deadlift
+- loaded good morning
 
-Examples:
+Use as primary strength movements or heavy accessory work. Pair with calisthenics skill and bodyweight work.
+
+---
+
+## Tier 6 — Full gym access
+
+Unlocks everything from Tier 5, plus:
 
 - lat pulldown
 - cable row
 - assisted dip machine
-- chest press
-- dumbbell bench press
-- overhead press
-- lateral raise
-- face pull
-- Romanian deadlift
+- chest press machine
+- cable face pull
+- lateral raise machine
 - leg press
-- hamstring curl
-- calf raise
+- hamstring curl machine
+- calf raise machine
 
-Use gym exercises as support work, not as random additions.
+Use gym machines as support and accessory work, not as random additions.
 
 ---
 
@@ -1528,8 +1534,9 @@ Prefer:
 - Australian rows if a low bar is available
 - table rows only if the setup is stable and safe
 - towel rows only if safely anchored
+- barbell rows if barbell & plates are available
 - dumbbell rows if weights are available
-- lat pulldown if gym access is available
+- lat pulldown if full gym access is available
 
 If none are available:
 
@@ -1546,7 +1553,7 @@ Prefer:
 - push-ups
 - close-grip push-ups
 - decline push-ups
-- assisted dip machine if gym access is available
+- assisted dip machine if full gym access is available
 - ring support holds if rings are available
 
 ## Hanging core unavailable
@@ -1586,7 +1593,7 @@ Prefer:
 - negative reps
 - partial range of motion
 - elevated variations
-- gym-assisted machines if available
+- gym-assisted machines if full gym access is available
 
 ---
 

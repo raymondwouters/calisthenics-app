@@ -12,7 +12,8 @@ const EQUIPMENT = [
   { id: 'resistance bands', label: 'Resistance bands' },
   { id: 'rings', label: 'Rings' },
   { id: 'parallettes', label: 'Parallettes' },
-  { id: 'gym access', label: 'Gym access' },
+  { id: 'barbell & plates', label: 'Barbell & plates' },
+  { id: 'full gym access', label: 'Full gym access' },
 ]
 
 const DAYS = [2, 3, 4, 5, 6]
