@@ -18,6 +18,8 @@ Generate a personalized calisthenics workout plan for me with the following prof
 
 Return ONLY a valid JSON object. No explanation, no markdown, no code block — pure JSON.
 
+Keep each session focused: warmup (2-3 exercises), strength/skill (3-4 exercises), core (1-2 exercises), cooldown (1-2 exercises). Do not pad with unnecessary exercises. Concise plans are better.
+
 The JSON must follow this exact structure:
 {
   "plan": {
@@ -51,10 +53,15 @@ The JSON must follow this exact structure:
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8000,
       system: getSkillPrompt(),
       messages: [{ role: 'user', content: userMessage }],
     })
+
+    if (message.stop_reason === 'max_tokens') {
+      console.error('Claude response truncated — plan too large')
+      return NextResponse.json({ error: 'Plan was too large to generate. Try fewer days or less equipment.' }, { status: 500 })
+    }
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
 
