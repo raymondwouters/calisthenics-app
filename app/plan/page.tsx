@@ -1215,6 +1215,11 @@ export default function PlanPage() {
           <span className="text-muted-foreground font-normal">
             {' — '}{isRestDay ? 'Stretch and recover' : activeSession.label}
           </span>
+          {!isRestDay && (
+            <span className="text-muted-foreground font-normal text-sm">
+              {' · ~'}{estimateDuration(activeSession)} min
+            </span>
+          )}
         </h2>
 
         {/* Active session content */}
