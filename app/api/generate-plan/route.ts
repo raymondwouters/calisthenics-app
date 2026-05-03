@@ -3,7 +3,6 @@ import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSkillPrompt } from '@/lib/skill'
 import { supabase } from '@/lib/supabase'
-import { createSupabaseServer } from '@/lib/supabase-server'
 import { GenerateRequest } from '@/lib/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -28,8 +27,7 @@ export async function POST(req: NextRequest) {
 
     if (cached) {
       console.log('cache hit:', hash)
-      const planId = await saveUserPlan(cached.plan, body)
-      return NextResponse.json({ ...cached.plan, planId })
+      return NextResponse.json(cached.plan)
     }
   }
 
@@ -129,32 +127,10 @@ The JSON must follow this exact structure:
         })
     }
 
-    const planId = await saveUserPlan(planData, body)
-    return NextResponse.json({ ...planData, planId })
+    return NextResponse.json(planData)
   } catch (err) {
     console.error('Claude API error:', err)
     return NextResponse.json({ error: 'Failed to generate plan' }, { status: 500 })
   }
 }
 
-async function saveUserPlan(planData: object, inputs: GenerateRequest): Promise<string | null> {
-  try {
-    const serverClient = await createSupabaseServer()
-    const { data: { user } } = await serverClient.auth.getUser()
-    if (!user) return null
-
-    const { data, error } = await supabase
-      .from('plans')
-      .insert({ user_id: user.id, plan: planData, inputs })
-      .select('id')
-      .single()
-
-    if (error) {
-      console.error('Plan save error:', error.message)
-      return null
-    }
-    return data.id
-  } catch {
-    return null
-  }
-}

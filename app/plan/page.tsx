@@ -1055,7 +1055,7 @@ export default function PlanPage() {
             setAllLogs(logsMap)
           }
 
-          setIsAccepted(sessionStorage.getItem('plan-accepted') === '1')
+          setIsAccepted(true)
           return
         }
       }
@@ -1114,7 +1114,19 @@ export default function PlanPage() {
     })
   }
 
-  const handleAcceptPlan = () => {
+  const handleAcceptPlan = async () => {
+    if (plan && inputs && userId && !planId) {
+      const supabase = createSupabaseBrowser()
+      const { data } = await supabase
+        .from('plans')
+        .insert({ user_id: userId, plan, inputs })
+        .select('id')
+        .single()
+      if (data) {
+        setPlanId(data.id)
+        sessionStorage.setItem('plan-id', data.id)
+      }
+    }
     sessionStorage.setItem('plan-accepted', '1')
     setIsAccepted(true)
   }
@@ -1148,7 +1160,7 @@ export default function PlanPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">
-            {firstName ? `${firstName}, your` : 'Your'} workout plan to {goal.toLowerCase()}.
+            {firstName ? `${firstName}'s` : 'My'} program — {goal.toLowerCase()}.
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {level}

@@ -92,7 +92,8 @@ function HomeContent() {
       const data = await res.json()
       sessionStorage.setItem('workout-plan', JSON.stringify(data))
       sessionStorage.setItem('workout-inputs', JSON.stringify({ level, equipment, goal, daysPerWeek: days }))
-      if (data.planId) sessionStorage.setItem('plan-id', data.planId)
+      sessionStorage.removeItem('plan-id')
+      sessionStorage.removeItem('plan-accepted')
       router.push('/plan')
     } catch {
       setError('Something went wrong. Please try again.')

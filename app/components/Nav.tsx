@@ -9,18 +9,22 @@ export default function Nav() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [displayName, setDisplayName] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const supabase = createSupabaseBrowser()
     supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsLoggedIn(!!user)
       if (user) {
         setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
       }
+      setLoaded(true)
     })
   }, [pathname])
 
-  // Close on outside click
+  // Close drawer on outside click
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
@@ -32,7 +36,7 @@ export default function Nav() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  // Close on Escape
+  // Close drawer on Escape
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
@@ -52,6 +56,18 @@ export default function Nav() {
     router.push(href)
   }
 
+  // Don't render anything on login page or while checking auth
+  if (pathname === '/login') return null
+  if (!loaded) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-sm flex items-center px-5">
+        <span className="text-sm font-semibold text-white tracking-tight">Calisthenics</span>
+        <span className="ml-2 text-xs text-orange-400 font-medium">AI</span>
+      </header>
+    )
+  }
+  if (!isLoggedIn) return null
+
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-sm flex items-center px-5">
@@ -60,10 +76,51 @@ export default function Nav() {
           <span className="ml-2 text-xs text-orange-400 font-medium">AI</span>
         </div>
 
+        {/* Desktop inline nav */}
+        <nav className="hidden sm:flex items-center gap-1 mr-2">
+          <DesktopNavItem
+            label="My program"
+            active={pathname === '/plan'}
+            onClick={() => router.push('/plan')}
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            }
+          />
+          <DesktopNavItem
+            label="History"
+            active={pathname === '/history'}
+            onClick={() => router.push('/history')}
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            }
+          />
+          <DesktopNavItem
+            label="Account"
+            active={pathname === '/account'}
+            onClick={() => router.push('/account')}
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            }
+          />
+          <button
+            onClick={handleSignOut}
+            className="ml-2 px-3 py-1.5 rounded-lg text-xs text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+          >
+            Sign out
+          </button>
+        </nav>
+
+        {/* Mobile hamburger */}
         <button
           onClick={() => setOpen(v => !v)}
           aria-label="Open menu"
-          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+          className="sm:hidden p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -111,8 +168,8 @@ export default function Nav() {
 
         {/* Nav links */}
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-          <NavItem
-            label="Your plan"
+          <DrawerNavItem
+            label="My program"
             icon={
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -121,7 +178,7 @@ export default function Nav() {
             active={pathname === '/plan'}
             onClick={() => navigate('/plan')}
           />
-          <NavItem
+          <DrawerNavItem
             label="History"
             icon={
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -131,7 +188,7 @@ export default function Nav() {
             active={pathname === '/history'}
             onClick={() => navigate('/history')}
           />
-          <NavItem
+          <DrawerNavItem
             label="Account"
             icon={
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -162,7 +219,33 @@ export default function Nav() {
   )
 }
 
-function NavItem({
+function DesktopNavItem({
+  label,
+  icon,
+  active,
+  onClick,
+}: {
+  label: string
+  icon: React.ReactNode
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? 'bg-orange-400/10 text-orange-400'
+          : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+function DrawerNavItem({
   label,
   icon,
   active,
