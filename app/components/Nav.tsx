@@ -44,13 +44,6 @@ export default function Nav() {
     return () => document.removeEventListener('keydown', handler)
   }, [open])
 
-  const handleSignOut = async () => {
-    const supabase = createSupabaseBrowser()
-    await supabase.auth.signOut()
-    setOpen(false)
-    router.push('/login')
-  }
-
   const navigate = (href: string) => {
     setOpen(false)
     router.push(href)
@@ -89,12 +82,12 @@ export default function Nav() {
             }
           />
           <DesktopNavItem
-            label="History"
-            active={pathname === '/history'}
-            onClick={() => router.push('/history')}
+            label="Progression"
+            active={pathname === '/progression'}
+            onClick={() => router.push('/progression')}
             icon={
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             }
           />
@@ -108,12 +101,6 @@ export default function Nav() {
               </svg>
             }
           />
-          <button
-            onClick={handleSignOut}
-            className="ml-2 px-3 py-1.5 rounded-lg text-xs text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-          >
-            Sign out
-          </button>
         </nav>
 
         {/* Mobile hamburger */}
@@ -179,14 +166,14 @@ export default function Nav() {
             onClick={() => navigate('/plan')}
           />
           <DrawerNavItem
-            label="History"
+            label="Progression"
             icon={
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             }
-            active={pathname === '/history'}
-            onClick={() => navigate('/history')}
+            active={pathname === '/progression'}
+            onClick={() => navigate('/progression')}
           />
           <DrawerNavItem
             label="Account"
@@ -200,20 +187,6 @@ export default function Nav() {
           />
         </nav>
 
-        <div className="h-px bg-zinc-800 mx-6" />
-
-        {/* Sign out */}
-        <div className="px-3 py-4">
-          <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Sign out
-          </button>
-        </div>
       </div>
     </>
   )

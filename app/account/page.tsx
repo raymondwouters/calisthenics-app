@@ -48,6 +48,11 @@ export default function AccountPage() {
   const [savingName, setSavingName] = useState(false)
   const [nameSaved, setNameSaved] = useState(false)
 
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
   const [originalInputs, setOriginalInputs] = useState<GenerateRequest | null>(null)
   const [level, setLevel] = useState('')
   const [equipment, setEquipment] = useState<string[]>(['floor'])
@@ -153,12 +158,32 @@ export default function AccountPage() {
       const data = await res.json()
       sessionStorage.setItem('workout-plan', JSON.stringify(data))
       sessionStorage.setItem('workout-inputs', JSON.stringify(inputs))
-      if (data.planId) sessionStorage.setItem('plan-id', data.planId)
+      sessionStorage.removeItem('plan-id')
       sessionStorage.removeItem('plan-accepted')
       router.push('/plan')
     } catch {
       setError('Something went wrong. Please try again.')
       setGenerating(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    const supabase = createSupabaseBrowser()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      const res = await fetch('/api/delete-account', { method: 'POST' })
+      if (!res.ok) throw new Error('Delete failed')
+      sessionStorage.clear()
+      router.push('/login')
+    } catch {
+      setDeleteError('Something went wrong. Please try again.')
+      setDeleting(false)
     }
   }
 
@@ -361,6 +386,44 @@ export default function AccountPage() {
           </CardContent>
         </Card>
 
+        {/* Sign out */}
+        <Card className="bg-zinc-900 border-zinc-800 mb-5">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Sign out</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Sign out of your account on this device.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleSignOut}
+                className="border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 bg-transparent shrink-0"
+              >
+                Sign out
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Danger zone */}
+        <Card className="bg-zinc-900 border-red-900/40 mb-5">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-400">Delete account</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Permanently remove your account and all data.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => { setShowDeleteDialog(true); setDeleteConfirmText(''); setDeleteError('') }}
+                className="border-red-900/60 text-red-400 hover:text-red-300 hover:bg-red-400/10 hover:border-red-400/40 bg-transparent shrink-0"
+              >
+                Delete
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
 
       {/* Confirm dialog */}
@@ -385,6 +448,45 @@ export default function AccountPage() {
               className="bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold"
             >
               Yes, generate new plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete account dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete your account?</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              This will permanently delete your account, all plans, and all logged data. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <p className="text-xs text-zinc-500">Type <span className="text-white font-mono">delete</span> to confirm.</p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder="delete"
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-red-500/60"
+            />
+            {deleteError && <p className="text-red-400 text-sm">{deleteError}</p>}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteDialog(false)}
+              className="text-zinc-400 hover:text-white hover:bg-zinc-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== 'delete' || deleting}
+              className="bg-red-500 hover:bg-red-400 text-white font-semibold disabled:opacity-40"
+            >
+              {deleting ? 'Deleting…' : 'Yes, delete everything'}
             </Button>
           </DialogFooter>
         </DialogContent>
