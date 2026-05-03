@@ -54,25 +54,25 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center px-5">
+    <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-5">
       <div className="w-full max-w-sm">
 
         <div className="mb-8 text-center">
-          <p className="text-xs font-semibold tracking-widest text-orange-400 uppercase mb-3">Calisthenics AI</p>
+          <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-3">Calisthenics AI</p>
           <h1 className="text-2xl font-bold">Your training, tracked.</h1>
-          <p className="text-sm text-zinc-400 mt-2">Sign in to access your workout plan.</p>
+          <p className="text-sm text-muted-foreground mt-2">Sign in to access your workout plan.</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 mb-6 gap-1">
+        <div className="flex bg-secondary border border-border rounded-xl p-1 mb-6 gap-1">
           {(['signin', 'signup'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => { setTab(t); setError(''); setSuccess('') }}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                 tab === t
-                  ? 'bg-orange-400 text-zinc-950'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {t === 'signin' ? 'Sign in' : 'Create account'}
@@ -83,7 +83,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {tab === 'signup' && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name" className="text-xs text-zinc-400 font-medium uppercase tracking-widest">Your name</Label>
+              <Label htmlFor="name" className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Your name</Label>
               <Input
                 id="name"
                 type="text"
@@ -91,12 +91,12 @@ export default function LoginPage() {
                 onChange={e => setName(e.target.value)}
                 autoComplete="name"
                 placeholder="Raymond"
-                className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus-visible:ring-orange-400/50 focus-visible:border-orange-400"
+                className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary"
               />
             </div>
           )}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email" className="text-xs text-zinc-400 font-medium uppercase tracking-widest">Email</Label>
+            <Label htmlFor="email" className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Email</Label>
             <Input
               id="email"
               type="email"
@@ -105,12 +105,12 @@ export default function LoginPage() {
               required
               autoComplete="email"
               placeholder="you@example.com"
-              className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus-visible:ring-orange-400/50 focus-visible:border-orange-400"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="password" className="text-xs text-zinc-400 font-medium uppercase tracking-widest">Password</Label>
+            <Label htmlFor="password" className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Password</Label>
             <Input
               id="password"
               type="password"
@@ -119,17 +119,17 @@ export default function LoginPage() {
               required
               autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
               placeholder="••••••••"
-              className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-600 focus-visible:ring-orange-400/50 focus-visible:border-orange-400"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary"
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          {success && <p className="text-green-400 text-sm">{success}</p>}
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          {success && <p className="text-accent text-sm">{success}</p>}
 
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold disabled:opacity-40 flex items-center justify-center gap-2 mt-2 h-11"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-40 flex items-center justify-center gap-2 mt-2 h-11"
           >
             {loading ? (
               <>

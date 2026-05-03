@@ -189,8 +189,8 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <svg className="animate-spin w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24">
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <svg className="animate-spin w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
         </svg>
@@ -199,36 +199,36 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-5 sm:px-8 py-8">
 
         <div className="mb-8">
-          <p className="text-xs font-semibold tracking-widest text-orange-400 uppercase mb-1">Settings</p>
-          <h1 className="text-2xl font-bold text-white">Account</h1>
+          <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-1">Settings</p>
+          <h1 className="text-2xl font-bold text-foreground">Account</h1>
         </div>
 
         {/* Profile */}
-        <Card className="bg-zinc-900 border-zinc-800 mb-5">
+        <Card className="bg-card border-border mb-5">
           <CardHeader className="pb-4">
-            <CardTitle className="text-white text-base">Profile</CardTitle>
-            <CardDescription className="text-zinc-500 text-sm">Your display name shown in the app.</CardDescription>
+            <CardTitle className="text-foreground text-base">Profile</CardTitle>
+            <CardDescription className="text-muted-foreground text-sm">Your display name shown in the app.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex gap-3 items-end">
               <div className="flex-1">
-                <Label htmlFor="display-name" className="text-zinc-400 text-xs mb-2 block">Display name</Label>
+                <Label htmlFor="display-name" className="text-muted-foreground text-xs mb-2 block">Display name</Label>
                 <Input
                   id="display-name"
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
                   placeholder="Your name"
-                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 focus-visible:ring-orange-400/50 focus-visible:border-orange-400"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary"
                 />
               </div>
               <Button
                 onClick={handleSaveName}
                 disabled={savingName || !displayName.trim()}
-                className="bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold shrink-0"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shrink-0"
               >
                 {nameSaved ? '✓ Saved' : savingName ? 'Saving…' : 'Save'}
               </Button>
@@ -237,16 +237,16 @@ export default function AccountPage() {
         </Card>
 
         {/* Training settings */}
-        <Card className="bg-zinc-900 border-zinc-800 mb-5">
+        <Card className="bg-card border-border mb-5">
           <CardHeader className="pb-4">
-            <CardTitle className="text-white text-base">Training settings</CardTitle>
-            <CardDescription className="text-zinc-500 text-sm">Changing these will prompt you to generate a new plan.</CardDescription>
+            <CardTitle className="text-foreground text-base">Training settings</CardTitle>
+            <CardDescription className="text-muted-foreground text-sm">Changing these will prompt you to generate a new plan.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
 
             {/* Level */}
             <div>
-              <Label className="text-zinc-400 text-xs mb-3 block">Fitness level</Label>
+              <Label className="text-muted-foreground text-xs mb-3 block">Fitness level</Label>
               <div className="flex flex-wrap gap-2">
                 {LEVELS.map(l => (
                   <button
@@ -254,8 +254,8 @@ export default function AccountPage() {
                     onClick={() => updateLevel(l)}
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
                       level === l
-                        ? 'border-orange-400 bg-orange-400/10 text-orange-400'
-                        : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        ? 'border-primary bg-primary/8 text-primary'
+                        : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                     }`}
                   >
                     {l}
@@ -264,11 +264,11 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator />
 
             {/* Equipment */}
             <div>
-              <Label className="text-zinc-400 text-xs mb-3 block">Equipment available</Label>
+              <Label className="text-muted-foreground text-xs mb-3 block">Equipment available</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {EQUIPMENT_OPTIONS.map(e => (
                   <div
@@ -280,13 +280,13 @@ export default function AccountPage() {
                       id={`eq-${e.id}`}
                       checked={equipment.includes(e.id)}
                       disabled={e.id === 'floor'}
-                      className="border-zinc-600 data-[state=checked]:bg-orange-400 data-[state=checked]:border-orange-400"
+                      className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                       onCheckedChange={() => toggleEquipment(e.id)}
                     />
                     <label
                       htmlFor={`eq-${e.id}`}
                       className={`text-sm cursor-pointer select-none ${
-                        e.id === 'floor' ? 'text-zinc-600' : 'text-zinc-300'
+                        e.id === 'floor' ? 'text-muted-foreground/50' : 'text-foreground/80'
                       }`}
                     >
                       {e.label}
@@ -296,11 +296,11 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator />
 
             {/* Days per week */}
             <div>
-              <Label className="text-zinc-400 text-xs mb-3 block">Training days per week</Label>
+              <Label className="text-muted-foreground text-xs mb-3 block">Training days per week</Label>
               <div className="flex gap-2">
                 {DAYS.map(d => (
                   <button
@@ -308,8 +308,8 @@ export default function AccountPage() {
                     onClick={() => updateDays(d)}
                     className={`w-12 h-12 rounded-xl border text-base font-bold transition-all ${
                       daysPerWeek === d
-                        ? 'border-orange-400 bg-orange-400/10 text-orange-400'
-                        : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        ? 'border-primary bg-primary/8 text-primary'
+                        : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                     }`}
                   >
                     {d}
@@ -318,11 +318,11 @@ export default function AccountPage() {
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator />
 
             {/* Goal */}
             <div>
-              <Label className="text-zinc-400 text-xs mb-3 block">Primary goal</Label>
+              <Label className="text-muted-foreground text-xs mb-3 block">Primary goal</Label>
               <div className="flex flex-wrap gap-2">
                 {GOALS.map(g => (
                   <button
@@ -330,8 +330,8 @@ export default function AccountPage() {
                     onClick={() => updateGoal(g.id)}
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
                       goal === g.id
-                        ? 'border-orange-400 bg-orange-400/10 text-orange-400'
-                        : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        ? 'border-primary bg-primary/8 text-primary'
+                        : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                     }`}
                   >
                     {g.label}
@@ -343,7 +343,7 @@ export default function AccountPage() {
             {isDirty && (
               <Button
                 onClick={handleApplySettings}
-                className="bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold w-full"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold w-full"
               >
                 Apply settings & generate new plan →
               </Button>
@@ -352,10 +352,10 @@ export default function AccountPage() {
         </Card>
 
         {/* Generate new plan */}
-        <Card className="bg-zinc-900 border-zinc-800 mb-5">
+        <Card className="bg-card border-border mb-5">
           <CardHeader className="pb-4">
-            <CardTitle className="text-white text-base">Generate a new plan</CardTitle>
-            <CardDescription className="text-zinc-500 text-sm">
+            <CardTitle className="text-foreground text-base">Generate a new plan</CardTitle>
+            <CardDescription className="text-muted-foreground text-sm">
               Describe what you want to change, or just hit generate for a fresh start.
             </CardDescription>
           </CardHeader>
@@ -365,13 +365,13 @@ export default function AccountPage() {
               onChange={e => setPlanChangesText(e.target.value)}
               placeholder="e.g. I want more pulling work, less core volume, and I'd like to try ring work…"
               rows={3}
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 focus-visible:ring-orange-400/50 focus-visible:border-orange-400 resize-none"
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary resize-none"
             />
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && <p className="text-destructive text-sm">{error}</p>}
             <Button
               onClick={handleGenerateNewPlan}
               disabled={generating}
-              className="bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold self-end flex items-center gap-2"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold self-end flex items-center gap-2"
             >
               {generating ? (
                 <>
@@ -387,17 +387,17 @@ export default function AccountPage() {
         </Card>
 
         {/* Sign out */}
-        <Card className="bg-zinc-900 border-zinc-800 mb-5">
+        <Card className="bg-card border-border mb-5">
           <CardContent className="pt-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white">Sign out</p>
-                <p className="text-xs text-zinc-500 mt-0.5">Sign out of your account on this device.</p>
+                <p className="text-sm font-medium text-foreground">Sign out</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Sign out of your account on this device.</p>
               </div>
               <Button
                 variant="outline"
                 onClick={handleSignOut}
-                className="border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 bg-transparent shrink-0"
+                className="border-border text-foreground/70 hover:text-foreground hover:bg-secondary bg-transparent shrink-0"
               >
                 Sign out
               </Button>
@@ -406,17 +406,17 @@ export default function AccountPage() {
         </Card>
 
         {/* Danger zone */}
-        <Card className="bg-zinc-900 border-red-900/40 mb-5">
+        <Card className="bg-card border-destructive/20 mb-5">
           <CardContent className="pt-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-400">Delete account</p>
-                <p className="text-xs text-zinc-500 mt-0.5">Permanently remove your account and all data.</p>
+                <p className="text-sm font-medium text-destructive">Delete account</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Permanently remove your account and all data.</p>
               </div>
               <Button
                 variant="outline"
                 onClick={() => { setShowDeleteDialog(true); setDeleteConfirmText(''); setDeleteError('') }}
-                className="border-red-900/60 text-red-400 hover:text-red-300 hover:bg-red-400/10 hover:border-red-400/40 bg-transparent shrink-0"
+                className="border-destructive/40 text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/60 bg-transparent shrink-0"
               >
                 Delete
               </Button>
@@ -428,10 +428,10 @@ export default function AccountPage() {
 
       {/* Confirm dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-popover border-border text-popover-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white">Generate a new plan?</DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogTitle>Generate a new plan?</DialogTitle>
+            <DialogDescription>
               Your training settings changed. Generate a fresh plan with these updated settings?
             </DialogDescription>
           </DialogHeader>
@@ -439,13 +439,13 @@ export default function AccountPage() {
             <Button
               variant="ghost"
               onClick={() => setShowConfirmDialog(false)}
-              className="text-zinc-400 hover:text-white hover:bg-zinc-800"
+              className="text-muted-foreground hover:text-foreground hover:bg-secondary"
             >
               Cancel
             </Button>
             <Button
               onClick={handleGenerateWithSettings}
-              className="bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
               Yes, generate new plan
             </Button>
@@ -455,36 +455,36 @@ export default function AccountPage() {
 
       {/* Delete account dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
+        <DialogContent className="bg-popover border-border text-popover-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white">Delete your account?</DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogTitle>Delete your account?</DialogTitle>
+            <DialogDescription>
               This will permanently delete your account, all plans, and all logged data. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
-            <p className="text-xs text-zinc-500">Type <span className="text-white font-mono">delete</span> to confirm.</p>
+            <p className="text-xs text-muted-foreground">Type <span className="text-foreground font-mono">delete</span> to confirm.</p>
             <input
               type="text"
               value={deleteConfirmText}
               onChange={e => setDeleteConfirmText(e.target.value)}
               placeholder="delete"
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-red-500/60"
+              className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-destructive/60"
             />
-            {deleteError && <p className="text-red-400 text-sm">{deleteError}</p>}
+            {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="ghost"
               onClick={() => setShowDeleteDialog(false)}
-              className="text-zinc-400 hover:text-white hover:bg-zinc-800"
+              className="text-muted-foreground hover:text-foreground hover:bg-secondary"
             >
               Cancel
             </Button>
             <Button
               onClick={handleDeleteAccount}
               disabled={deleteConfirmText !== 'delete' || deleting}
-              className="bg-red-500 hover:bg-red-400 text-white font-semibold disabled:opacity-40"
+              className="bg-destructive hover:bg-destructive/90 text-white font-semibold disabled:opacity-40"
             >
               {deleting ? 'Deleting…' : 'Yes, delete everything'}
             </Button>

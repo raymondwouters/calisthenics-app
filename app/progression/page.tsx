@@ -107,12 +107,12 @@ function buildProgressions(rows: LogRow[]): ExerciseProgression[] {
 
 function TrendBadge({ trend, delta, unit }: Pick<ExerciseProgression, 'trend' | 'delta' | 'unit'>) {
   if (trend === 'new') {
-    return <span className="text-xs text-zinc-500">First session</span>
+    return <span className="text-xs text-muted-foreground">First session</span>
   }
   if (trend === 'up') {
     const label = delta !== null ? `+${delta}${unit === 's' ? 's' : ' reps'}` : '↑'
     return (
-      <span className="flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-600/10 px-2 py-0.5 rounded-full">
         <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
         </svg>
@@ -123,7 +123,7 @@ function TrendBadge({ trend, delta, unit }: Pick<ExerciseProgression, 'trend' | 
   if (trend === 'down') {
     const label = delta !== null ? `${delta}${unit === 's' ? 's' : ' reps'}` : '↓'
     return (
-      <span className="flex items-center gap-1 text-xs font-semibold text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">
+      <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
         <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -132,7 +132,7 @@ function TrendBadge({ trend, delta, unit }: Pick<ExerciseProgression, 'trend' | 
     )
   }
   return (
-    <span className="text-xs font-semibold text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">
+    <span className="text-xs font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
       → Same
     </span>
   )
@@ -143,14 +143,14 @@ function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
   const recent = ex.sessions.slice(-5)
 
   return (
-    <div className={`bg-zinc-900 rounded-xl p-4 border ${ex.trend === 'up' ? 'border-green-400/20' : 'border-zinc-800'}`}>
+    <div className={`bg-card rounded-xl p-4 border ${ex.trend === 'up' ? 'border-emerald-500/30' : 'border-border'}`}>
       <div className="flex items-start justify-between gap-3 mb-2">
-        <p className="text-sm font-semibold text-white leading-snug">{ex.name}</p>
+        <p className="text-sm font-semibold text-foreground leading-snug">{ex.name}</p>
         <TrendBadge trend={ex.trend} delta={ex.delta} unit={ex.unit} />
       </div>
 
-      <p className="text-xs text-zinc-500 mb-3">
-        {shortDate(last.date)} · <span className="text-zinc-300">{formatSets(last.sets)}</span>
+      <p className="text-xs text-muted-foreground mb-3">
+        {shortDate(last.date)} · <span className="text-foreground/80">{formatSets(last.sets)}</span>
       </p>
 
       {/* Session history */}
@@ -165,14 +165,14 @@ function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
                 key={s.dateKey}
                 className={`flex flex-col items-center px-2 py-1.5 rounded-lg min-w-[44px] ${
                   isLatest
-                    ? improved ? 'bg-green-400/10 border border-green-400/30' : 'bg-zinc-800 border border-zinc-700'
-                    : 'bg-zinc-800/40'
+                    ? improved ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-secondary border border-border'
+                    : 'bg-secondary/60'
                 }`}
               >
-                <span className={`text-[11px] font-bold leading-none ${isLatest ? (improved ? 'text-green-400' : 'text-white') : 'text-zinc-500'}`}>
+                <span className={`text-[11px] font-bold leading-none ${isLatest ? (improved ? 'text-emerald-600' : 'text-foreground') : 'text-muted-foreground'}`}>
                   {s.best !== null && s.unit ? formatBest(s.best, s.unit) : '✓'}
                 </span>
-                <span className="text-[9px] text-zinc-600 mt-0.5 whitespace-nowrap">{shortDate(s.date)}</span>
+                <span className="text-[9px] text-muted-foreground mt-0.5 whitespace-nowrap">{shortDate(s.date)}</span>
               </div>
             )
           })}
@@ -212,8 +212,8 @@ export default function ProgressionPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <svg className="animate-spin w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24">
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <svg className="animate-spin w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
         </svg>
@@ -225,18 +225,18 @@ export default function ProgressionPage() {
   const rest = progressions.filter(p => p.trend !== 'up')
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-5 sm:px-8 py-8">
 
         <div className="mb-8">
-          <p className="text-xs font-semibold tracking-widest text-orange-400 uppercase mb-1">Training</p>
-          <h1 className="text-2xl font-bold text-white">Progression</h1>
+          <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-1">Training</p>
+          <h1 className="text-2xl font-bold text-foreground">Progression</h1>
         </div>
 
         {progressions.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-zinc-500 text-sm">No sessions logged yet.</p>
-            <p className="text-zinc-600 text-xs mt-1">Accept your plan and start logging sets to track your progression.</p>
+            <p className="text-muted-foreground text-sm">No sessions logged yet.</p>
+            <p className="text-muted-foreground/70 text-xs mt-1">Accept your plan and start logging sets to track your progression.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-8">
@@ -244,9 +244,9 @@ export default function ProgressionPage() {
             {improving.length > 0 && (
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <p className="text-xs font-semibold tracking-widest text-green-400 uppercase">Getting stronger</p>
-                  <div className="flex-1 h-px bg-zinc-800" />
-                  <span className="text-xs text-zinc-600">{improving.length} exercise{improving.length !== 1 ? 's' : ''}</span>
+                  <p className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">Getting stronger</p>
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground">{improving.length} exercise{improving.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div className="flex flex-col gap-3">
                   {improving.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
@@ -258,9 +258,9 @@ export default function ProgressionPage() {
               <div>
                 {improving.length > 0 && (
                   <div className="flex items-center gap-3 mb-4">
-                    <p className="text-xs font-semibold tracking-widest text-zinc-500 uppercase">All exercises</p>
-                    <div className="flex-1 h-px bg-zinc-800" />
-                    <span className="text-xs text-zinc-600">{rest.length}</span>
+                    <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">All exercises</p>
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">{rest.length}</span>
                   </div>
                 )}
                 <div className="flex flex-col gap-3">

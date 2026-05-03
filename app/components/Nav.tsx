@@ -49,13 +49,23 @@ export default function Nav() {
     router.push(href)
   }
 
-  // Don't render anything on login page or while checking auth
   if (pathname === '/login') return null
+
+  // Logo-only during onboarding
+  if (pathname === '/') {
+    return (
+      <header className="h-14 bg-background flex items-center px-5">
+        <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
+        <span className="ml-2 text-xs text-accent font-medium">AI</span>
+      </header>
+    )
+  }
+
   if (!loaded) {
     return (
-      <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-sm flex items-center px-5">
-        <span className="text-sm font-semibold text-white tracking-tight">Calisthenics</span>
-        <span className="ml-2 text-xs text-orange-400 font-medium">AI</span>
+      <header className="h-14 bg-background flex items-center px-5">
+        <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
+        <span className="ml-2 text-xs text-accent font-medium">AI</span>
       </header>
     )
   }
@@ -63,10 +73,10 @@ export default function Nav() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-sm flex items-center px-5">
+      <header className="h-14 bg-background flex items-center px-5">
         <div className="flex-1 flex items-center">
-          <span className="text-sm font-semibold text-white tracking-tight">Calisthenics</span>
-          <span className="ml-2 text-xs text-orange-400 font-medium">AI</span>
+          <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
+          <span className="ml-2 text-xs text-accent font-medium">AI</span>
         </div>
 
         {/* Desktop inline nav */}
@@ -107,7 +117,7 @@ export default function Nav() {
         <button
           onClick={() => setOpen(v => !v)}
           aria-label="Open menu"
-          className="sm:hidden p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+          className="sm:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -118,7 +128,7 @@ export default function Nav() {
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
           aria-hidden="true"
           onClick={() => setOpen(false)}
         />
@@ -127,22 +137,22 @@ export default function Nav() {
       {/* Drawer */}
       <div
         ref={drawerRef}
-        className={`fixed top-0 right-0 z-50 h-full w-72 bg-zinc-950 border-l border-zinc-800 flex flex-col shadow-2xl transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 z-50 h-full w-72 bg-background border-l border-border flex flex-col shadow-xl transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
           <div>
             {displayName ? (
-              <p className="text-sm text-zinc-400">
-                Hi, <span className="text-white font-semibold">{displayName.split('@')[0]}</span>
+              <p className="text-sm text-muted-foreground">
+                Hi, <span className="text-foreground font-semibold">{displayName.split('@')[0]}</span>
               </p>
             ) : (
-              <p className="text-sm text-zinc-500">Menu</p>
+              <p className="text-sm text-muted-foreground">Menu</p>
             )}
           </div>
           <button
             onClick={() => setOpen(false)}
-            className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             aria-label="Close menu"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -151,7 +161,7 @@ export default function Nav() {
           </button>
         </div>
 
-        <div className="h-px bg-zinc-800 mx-6" />
+        <div className="h-px bg-border mx-6" />
 
         {/* Nav links */}
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
@@ -208,8 +218,8 @@ function DesktopNavItem({
       onClick={onClick}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
         active
-          ? 'bg-orange-400/10 text-orange-400'
-          : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+          ? 'bg-primary/8 text-primary'
+          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
       }`}
     >
       {icon}
@@ -234,8 +244,8 @@ function DrawerNavItem({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
         active
-          ? 'bg-orange-400/10 text-orange-400 font-medium'
-          : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+          ? 'bg-primary/8 text-primary font-medium'
+          : 'text-foreground/80 hover:bg-secondary hover:text-foreground'
       }`}
     >
       {icon}

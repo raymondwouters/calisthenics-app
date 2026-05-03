@@ -113,13 +113,13 @@ function HomeContent() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-5 sm:px-8 py-8">
+    <main className="bg-background text-foreground">
+      <div className="max-w-2xl mx-auto w-full px-5 sm:px-8 pt-8 pb-16">
 
         {/* Header */}
         <div className="mb-8">
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Calisthenics</p>
-          <h1 className="text-2xl font-bold text-foreground">Build your plan</h1>
+          <h1 className="text-2xl font-bold text-foreground">Tell me where you are —<br />I'll build your program.</h1>
           <div className="flex gap-1 mt-4">
             {[0, 1, 2, 3].map(i => (
               <div
@@ -132,7 +132,7 @@ function HomeContent() {
 
         {/* Step 0: Level */}
         {step === 0 && (
-          <div className="flex-1 flex flex-col">
+          <div>
             <h2 className="text-lg font-semibold mb-1">What&apos;s your current level?</h2>
             <p className="text-sm text-muted-foreground mb-6">Be honest — the plan adapts to where you actually are.</p>
             <div className="flex flex-col gap-3">
@@ -155,7 +155,7 @@ function HomeContent() {
 
         {/* Step 1: Equipment */}
         {step === 1 && (
-          <div className="flex-1 flex flex-col">
+          <div>
             <h2 className="text-lg font-semibold mb-1">What equipment do you have?</h2>
             <p className="text-sm text-muted-foreground mb-6">Select everything available to you. Floor is always included.</p>
             <div className="flex flex-col gap-3">
@@ -183,7 +183,7 @@ function HomeContent() {
 
         {/* Step 2: Days */}
         {step === 2 && (
-          <div className="flex-1 flex flex-col">
+          <div>
             <h2 className="text-lg font-semibold mb-1">How many days per week?</h2>
             <p className="text-sm text-muted-foreground mb-6">Pick a number you can realistically stick to.</p>
             <div className="flex gap-3 flex-wrap">
@@ -206,7 +206,7 @@ function HomeContent() {
 
         {/* Step 3: Goal */}
         {step === 3 && (
-          <div className="flex-1 flex flex-col">
+          <div>
             <h2 className="text-lg font-semibold mb-1">What&apos;s your primary goal?</h2>
             <p className="text-sm text-muted-foreground mb-6">This shapes the structure and focus of every session.</p>
             <div className="flex flex-col gap-3">
@@ -230,12 +230,12 @@ function HomeContent() {
         )}
 
         {/* Navigation */}
-        <div className="mt-8 flex gap-3">
+        <div className="mt-8 flex gap-2">
           {step > 0 && (
             <Button
               variant="outline"
               onClick={() => setStep(s => s - 1)}
-              className="border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground"
+              className="h-9 px-4 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground"
             >
               Back
             </Button>
@@ -244,7 +244,7 @@ function HomeContent() {
             <Button
               onClick={() => setStep(s => s + 1)}
               disabled={!canAdvance()}
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30"
+              className="h-9 px-5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30"
             >
               Continue
             </Button>
@@ -252,11 +252,11 @@ function HomeContent() {
             <Button
               onClick={handleGenerate}
               disabled={!canAdvance() || loading}
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30 flex items-center justify-center gap-2"
+              className="h-9 px-5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30 flex items-center gap-2"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>

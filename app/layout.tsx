@@ -13,15 +13,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  themeColor: "#f5f2ec",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} dark h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-zinc-950">
+    <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-background">
         <Nav />
-        <div className="flex-1 pt-14">
+        <div className="flex-1">
           {children}
         </div>
       </body>
