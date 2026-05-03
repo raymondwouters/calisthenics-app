@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { GenerateRequest } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
@@ -27,7 +27,7 @@ const GOALS = [
   { id: 'Muscle gain', label: 'Muscle gain', desc: 'Build muscle through bodyweight' },
 ]
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [step, setStep] = useState(0)
@@ -102,8 +102,8 @@ export default function Home() {
 
   if (checking) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-        <svg className="animate-spin w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24">
+      <main className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <svg className="animate-spin w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
         </svg>
@@ -112,18 +112,18 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white flex flex-col">
+    <main className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-5 sm:px-8 py-8">
 
         {/* Header */}
         <div className="mb-8">
-          <p className="text-xs font-semibold tracking-widest text-orange-400 uppercase mb-1">Calisthenics</p>
-          <h1 className="text-2xl font-bold text-white">Build your plan</h1>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Calisthenics</p>
+          <h1 className="text-2xl font-bold text-foreground">Build your plan</h1>
           <div className="flex gap-1 mt-4">
             {[0, 1, 2, 3].map(i => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? 'bg-orange-400' : 'bg-zinc-800'}`}
+                className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-secondary'}`}
               />
             ))}
           </div>
@@ -133,7 +133,7 @@ export default function Home() {
         {step === 0 && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-lg font-semibold mb-1">What&apos;s your current level?</h2>
-            <p className="text-sm text-zinc-400 mb-6">Be honest — the plan adapts to where you actually are.</p>
+            <p className="text-sm text-muted-foreground mb-6">Be honest — the plan adapts to where you actually are.</p>
             <div className="flex flex-col gap-3">
               {LEVELS.map(l => (
                 <button
@@ -141,8 +141,8 @@ export default function Home() {
                   onClick={() => setLevel(l)}
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all ${
                     level === l
-                      ? 'border-orange-400 bg-orange-400/10 text-white'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-card text-foreground/80 hover:border-foreground/30'
                   }`}
                 >
                   <span className="font-medium">{l}</span>
@@ -156,7 +156,7 @@ export default function Home() {
         {step === 1 && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-lg font-semibold mb-1">What equipment do you have?</h2>
-            <p className="text-sm text-zinc-400 mb-6">Select everything available to you. Floor is always included.</p>
+            <p className="text-sm text-muted-foreground mb-6">Select everything available to you. Floor is always included.</p>
             <div className="flex flex-col gap-3">
               {EQUIPMENT.map(e => (
                 <button
@@ -164,13 +164,13 @@ export default function Home() {
                   onClick={() => e.id !== 'floor' && toggleEquipment(e.id)}
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all flex items-center justify-between ${
                     equipment.includes(e.id)
-                      ? 'border-orange-400 bg-orange-400/10 text-white'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-card text-foreground/80 hover:border-foreground/30'
                   } ${e.id === 'floor' ? 'opacity-50 cursor-default' : ''}`}
                 >
                   <span className="font-medium">{e.label}</span>
                   {equipment.includes(e.id) && (
-                    <svg className="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -184,7 +184,7 @@ export default function Home() {
         {step === 2 && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-lg font-semibold mb-1">How many days per week?</h2>
-            <p className="text-sm text-zinc-400 mb-6">Pick a number you can realistically stick to.</p>
+            <p className="text-sm text-muted-foreground mb-6">Pick a number you can realistically stick to.</p>
             <div className="flex gap-3 flex-wrap">
               {DAYS.map(d => (
                 <button
@@ -192,8 +192,8 @@ export default function Home() {
                   onClick={() => setDays(d)}
                   className={`w-16 h-16 rounded-xl border text-lg font-bold transition-all ${
                     days === d
-                      ? 'border-orange-400 bg-orange-400/10 text-orange-400'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-card text-foreground/80 hover:border-foreground/30'
                   }`}
                 >
                   {d}
@@ -207,7 +207,7 @@ export default function Home() {
         {step === 3 && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-lg font-semibold mb-1">What&apos;s your primary goal?</h2>
-            <p className="text-sm text-zinc-400 mb-6">This shapes the structure and focus of every session.</p>
+            <p className="text-sm text-muted-foreground mb-6">This shapes the structure and focus of every session.</p>
             <div className="flex flex-col gap-3">
               {GOALS.map(g => (
                 <button
@@ -215,12 +215,12 @@ export default function Home() {
                   onClick={() => setGoal(g.id)}
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all ${
                     goal === g.id
-                      ? 'border-orange-400 bg-orange-400/10 text-white'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-card text-foreground/80 hover:border-foreground/30'
                   }`}
                 >
                   <p className="font-medium">{g.label}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{g.desc}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{g.desc}</p>
                 </button>
               ))}
             </div>
@@ -234,7 +234,7 @@ export default function Home() {
             <Button
               variant="outline"
               onClick={() => setStep(s => s - 1)}
-              className="border-zinc-700 text-zinc-300 bg-transparent hover:bg-zinc-800 hover:text-white"
+              className="border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground"
             >
               Back
             </Button>
@@ -243,7 +243,7 @@ export default function Home() {
             <Button
               onClick={() => setStep(s => s + 1)}
               disabled={!canAdvance()}
-              className="flex-1 bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold disabled:opacity-30"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30"
             >
               Continue
             </Button>
@@ -251,7 +251,7 @@ export default function Home() {
             <Button
               onClick={handleGenerate}
               disabled={!canAdvance() || loading}
-              className="flex-1 bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold disabled:opacity-30 flex items-center justify-center gap-2"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -270,5 +270,20 @@ export default function Home() {
 
       </div>
     </main>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <svg className="animate-spin w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </main>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }
