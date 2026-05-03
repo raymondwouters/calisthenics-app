@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import Nav from "./components/Nav";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -17,8 +18,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-zinc-950">{children}</body>
+    <html lang="en" className={`${geist.variable} dark h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-zinc-950">
+        <Nav />
+        <div className="flex-1 pt-14">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

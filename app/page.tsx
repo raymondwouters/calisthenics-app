@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { GenerateRequest } from '@/lib/types'
+import { createSupabaseBrowser } from '@/lib/supabase-browser'
+import { Button } from '@/components/ui/button'
 
 const LEVELS = ['Beginner', 'Early Intermediate', 'Intermediate', 'Advanced']
 
@@ -27,14 +29,40 @@ const GOALS = [
 
 export default function Home() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [error, setError] = useState('')
 
   const [level, setLevel] = useState('')
   const [equipment, setEquipment] = useState<string[]>(['floor'])
   const [days, setDays] = useState(3)
   const [goal, setGoal] = useState('')
+
+  useEffect(() => {
+    const isNew = searchParams.get('new') === '1'
+    if (isNew) {
+      setChecking(false)
+      return
+    }
+    const supabase = createSupabaseBrowser()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setChecking(false); return }
+      const { data } = await supabase
+        .from('plans')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (data) {
+        router.replace('/plan')
+      } else {
+        setChecking(false)
+      }
+    })
+  }, [router, searchParams])
 
   const toggleEquipment = (id: string) => {
     setEquipment(prev =>
@@ -63,7 +91,8 @@ export default function Home() {
       if (!res.ok) throw new Error('Generation failed')
       const data = await res.json()
       sessionStorage.setItem('workout-plan', JSON.stringify(data))
-      sessionStorage.setItem('workout-inputs', JSON.stringify({ level, equipment, goal }))
+      sessionStorage.setItem('workout-inputs', JSON.stringify({ level, equipment, goal, daysPerWeek: days }))
+      if (data.planId) sessionStorage.setItem('plan-id', data.planId)
       router.push('/plan')
     } catch {
       setError('Something went wrong. Please try again.')
@@ -71,9 +100,20 @@ export default function Home() {
     }
   }
 
+  if (checking) {
+    return (
+      <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
+        <svg className="animate-spin w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 text-white flex flex-col">
-      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-5 py-8">
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-5 sm:px-8 py-8">
 
         {/* Header */}
         <div className="mb-8">
@@ -83,7 +123,7 @@ export default function Home() {
             {[0, 1, 2, 3].map(i => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? 'bg-orange-400' : 'bg-zinc-700'}`}
+                className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? 'bg-orange-400' : 'bg-zinc-800'}`}
               />
             ))}
           </div>
@@ -102,7 +142,7 @@ export default function Home() {
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all ${
                     level === l
                       ? 'border-orange-400 bg-orange-400/10 text-white'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
                   }`}
                 >
                   <span className="font-medium">{l}</span>
@@ -125,8 +165,8 @@ export default function Home() {
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all flex items-center justify-between ${
                     equipment.includes(e.id)
                       ? 'border-orange-400 bg-orange-400/10 text-white'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
-                  } ${e.id === 'floor' ? 'opacity-60 cursor-default' : ''}`}
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
+                  } ${e.id === 'floor' ? 'opacity-50 cursor-default' : ''}`}
                 >
                   <span className="font-medium">{e.label}</span>
                   {equipment.includes(e.id) && (
@@ -153,7 +193,7 @@ export default function Home() {
                   className={`w-16 h-16 rounded-xl border text-lg font-bold transition-all ${
                     days === d
                       ? 'border-orange-400 bg-orange-400/10 text-orange-400'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
                   }`}
                 >
                   {d}
@@ -176,7 +216,7 @@ export default function Home() {
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all ${
                     goal === g.id
                       ? 'border-orange-400 bg-orange-400/10 text-white'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+                      : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600'
                   }`}
                 >
                   <p className="font-medium">{g.label}</p>
@@ -191,26 +231,27 @@ export default function Home() {
         {/* Navigation */}
         <div className="mt-8 flex gap-3">
           {step > 0 && (
-            <button
+            <Button
+              variant="outline"
               onClick={() => setStep(s => s - 1)}
-              className="px-5 py-3 rounded-xl border border-zinc-700 text-zinc-300 font-medium hover:border-zinc-500 transition-all"
+              className="border-zinc-700 text-zinc-300 bg-transparent hover:bg-zinc-800 hover:text-white"
             >
               Back
-            </button>
+            </Button>
           )}
           {step < 3 ? (
-            <button
+            <Button
               onClick={() => setStep(s => s + 1)}
               disabled={!canAdvance()}
-              className="flex-1 py-3 rounded-xl bg-orange-400 text-zinc-950 font-semibold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-orange-300 transition-all"
+              className="flex-1 bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold disabled:opacity-30"
             >
               Continue
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleGenerate}
               disabled={!canAdvance() || loading}
-              className="flex-1 py-3 rounded-xl bg-orange-400 text-zinc-950 font-semibold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-orange-300 transition-all flex items-center justify-center gap-2"
+              className="flex-1 bg-orange-400 hover:bg-orange-300 text-zinc-950 font-semibold disabled:opacity-30 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -223,7 +264,7 @@ export default function Home() {
               ) : (
                 'Generate my plan'
               )}
-            </button>
+            </Button>
           )}
         </div>
 

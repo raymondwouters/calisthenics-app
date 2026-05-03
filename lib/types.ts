@@ -7,13 +7,14 @@ export interface Exercise {
 }
 
 export interface Block {
-  type: 'warmup' | 'skill' | 'strength' | 'accessory' | 'core' | 'cooldown'
+  type: 'warmup' | 'skill' | 'strength' | 'accessory' | 'core' | 'cooldown' | 'stretch'
   exercises: Exercise[]
 }
 
 export interface Session {
   day: string
   label: string
+  type?: 'workout' | 'rest'
   blocks: Block[]
 }
 
@@ -33,4 +34,24 @@ export interface GenerateRequest {
   equipment: string[]
   daysPerWeek: number
   goal: string
+  changes?: string
+}
+
+export interface SetLog {
+  reps?: number
+  duration_s?: number
+  weight_kg?: number
+}
+
+export interface ExerciseLog {
+  sessionDay: string
+  exerciseName: string
+  setsData: SetLog[]
+}
+
+export interface FeedbackPlanRequest {
+  currentPlan: WorkoutPlan
+  inputs: GenerateRequest
+  logs: ExerciseLog[]
+  feedback: string
 }
