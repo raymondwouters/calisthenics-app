@@ -31,9 +31,7 @@ function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [step, setStep] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
-  const [error, setError] = useState('')
 
   const [level, setLevel] = useState('')
   const [equipment, setEquipment] = useState<string[]>(['floor'])
@@ -43,6 +41,7 @@ function HomeContent() {
   useEffect(() => {
     const isNew = searchParams.get('new') === '1'
     if (isNew) {
+      sessionStorage.removeItem('plan-generating')
       setChecking(false)
       return
     }
@@ -78,27 +77,14 @@ function HomeContent() {
     return false
   }
 
-  const handleGenerate = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const body: GenerateRequest = { level, equipment, daysPerWeek: days, goal }
-      const res = await fetch('/api/generate-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) throw new Error('Generation failed')
-      const data = await res.json()
-      sessionStorage.setItem('workout-plan', JSON.stringify(data))
-      sessionStorage.setItem('workout-inputs', JSON.stringify({ level, equipment, goal, daysPerWeek: days }))
-      sessionStorage.removeItem('plan-id')
-      sessionStorage.removeItem('plan-accepted')
-      router.push('/plan')
-    } catch {
-      setError('Something went wrong. Please try again.')
-      setLoading(false)
-    }
+  const handleGenerate = () => {
+    const inputs: GenerateRequest = { level, equipment, daysPerWeek: days, goal }
+    sessionStorage.setItem('workout-inputs', JSON.stringify(inputs))
+    sessionStorage.setItem('plan-generating', '1')
+    sessionStorage.removeItem('workout-plan')
+    sessionStorage.removeItem('plan-id')
+    sessionStorage.removeItem('plan-accepted')
+    router.push('/plan')
   }
 
   if (checking) {
@@ -225,7 +211,6 @@ function HomeContent() {
                 </button>
               ))}
             </div>
-            {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
           </div>
         )}
 
@@ -251,20 +236,10 @@ function HomeContent() {
           ) : (
             <Button
               onClick={handleGenerate}
-              disabled={!canAdvance() || loading}
-              className="h-9 px-5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30 flex items-center gap-2"
+              disabled={!canAdvance()}
+              className="h-9 px-5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30"
             >
-              {loading ? (
-                <>
-                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Building your plan…
-                </>
-              ) : (
-                'Generate my plan'
-              )}
+              Generate my plan
             </Button>
           )}
         </div>

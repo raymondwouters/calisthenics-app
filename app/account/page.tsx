@@ -132,12 +132,12 @@ export default function AccountPage() {
   }
 
   const handleApplySettings = () => {
-    if (isDirty) setShowConfirmDialog(true)
+    if (isDirty || planChangesText.trim()) setShowConfirmDialog(true)
   }
 
   const handleGenerateWithSettings = async () => {
     setShowConfirmDialog(false)
-    await generatePlan({ level, equipment, daysPerWeek, goal })
+    await generatePlan({ level, equipment, daysPerWeek, goal, changes: planChangesText.trim() || undefined })
   }
 
   const handleGenerateNewPlan = async () => {
@@ -340,38 +340,48 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {isDirty && (
+            <Separator />
+
+            {/* Program customization */}
+            <div>
+              <Label className="text-muted-foreground text-xs mb-1 block">Program customization</Label>
+              <p className="text-xs text-muted-foreground/70 mb-3">
+                Tell us anything specific you want in your program — exercises to include, movements to avoid, or focus areas. We&apos;ll swap or add accordingly.
+              </p>
+              <Textarea
+                value={planChangesText}
+                onChange={e => setPlanChangesText(e.target.value)}
+                placeholder="e.g. I want to include deadlifts in my leg day. No ring work for now, my shoulder is tender."
+                rows={3}
+                className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary resize-none"
+              />
+            </div>
+
+            {(isDirty || planChangesText.trim()) && (
               <Button
                 onClick={handleApplySettings}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold w-full"
               >
-                Apply settings & generate new plan →
+                Generate new plan →
               </Button>
             )}
           </CardContent>
         </Card>
 
-        {/* Generate new plan */}
+        {/* Generate fresh plan (no changes) */}
         <Card className="bg-card border-border mb-5">
           <CardHeader className="pb-4">
-            <CardTitle className="text-foreground text-base">Generate a new plan</CardTitle>
+            <CardTitle className="text-foreground text-base">Fresh start</CardTitle>
             <CardDescription className="text-muted-foreground text-sm">
-              Describe what you want to change, or just hit generate for a fresh start.
+              Generate a completely new plan with your current settings, ignoring any customization above.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <Textarea
-              value={planChangesText}
-              onChange={e => setPlanChangesText(e.target.value)}
-              placeholder="e.g. I want more pulling work, less core volume, and I'd like to try ring work…"
-              rows={3}
-              className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary resize-none"
-            />
-            {error && <p className="text-destructive text-sm">{error}</p>}
+          <CardContent>
+            {error && <p className="text-destructive text-sm mb-3">{error}</p>}
             <Button
-              onClick={handleGenerateNewPlan}
+              onClick={() => generatePlan({ level, equipment, daysPerWeek, goal })}
               disabled={generating}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold self-end flex items-center gap-2"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-2"
             >
               {generating ? (
                 <>
@@ -381,7 +391,7 @@ export default function AccountPage() {
                   </svg>
                   Generating…
                 </>
-              ) : 'Generate plan →'}
+              ) : 'Generate fresh plan →'}
             </Button>
           </CardContent>
         </Card>

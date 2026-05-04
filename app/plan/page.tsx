@@ -541,12 +541,12 @@ function ExerciseCard({
   const timerActive = timer.phase !== 'idle'
 
   return (
-    <div className={`bg-card rounded-xl p-4 flex flex-col gap-2 transition-all ${atTarget ? 'ring-1 ring-green-400/60' : ''}`}>
+    <div className={`bg-card rounded-xl p-4 flex flex-col gap-2 transition-all ${atTarget ? 'ring-1 ring-emerald-600/50 dark:ring-emerald-400/40' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <p className="font-semibold text-foreground leading-tight">{exercise.name}</p>
           {atTarget && (
-            <span className="shrink-0 text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-md font-medium">✓ Goal hit</span>
+            <span className="shrink-0 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-md font-medium">✓ Goal hit</span>
           )}
         </div>
         <a
@@ -835,7 +835,9 @@ function ExerciseCard({
 
       {/* Difficulty adjustment */}
       <div className="mt-2 pt-3 border-t border-border/50">
-        <p className="text-xs text-muted-foreground mb-2.5">How did this feel?</p>
+        <p className="text-xs text-muted-foreground mb-2.5">
+          {isPreview ? 'Not the right difficulty? Swap for an easier or harder variation.' : 'How did this feel?'}
+        </p>
         <div className="flex gap-2">
           <button
             onClick={() => adjust('regression')}
@@ -848,7 +850,7 @@ function ExerciseCard({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
               </svg>
             ) : <span className="text-base leading-none">↓</span>}
-            Too hard
+            {isPreview ? 'Easier' : 'Too hard'}
           </button>
           <button
             onClick={() => adjust('progression')}
@@ -861,7 +863,7 @@ function ExerciseCard({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
               </svg>
             ) : <span className="text-base leading-none">↑</span>}
-            Too easy
+            {isPreview ? 'Harder' : 'Too easy'}
           </button>
         </div>
         {limitMessage && (
@@ -1093,6 +1095,14 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
 
 // ─── PlanPage ─────────────────────────────────────────────────────────────────
 
+const GENERATING_MESSAGES = [
+  'Analyzing your level and goals…',
+  'Selecting the right progressions…',
+  'Structuring your weekly schedule…',
+  'Balancing push, pull, and recovery…',
+  'Almost there…',
+]
+
 export default function PlanPage() {
   const router = useRouter()
   const [plan, setPlan] = useState<PlanResponse | null>(null)
@@ -1107,6 +1117,9 @@ export default function PlanPage() {
   const [isAccepted, setIsAccepted] = useState(false)
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean } | null>(null)
   const [showFinish, setShowFinish] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatingMsgIdx, setGeneratingMsgIdx] = useState(0)
+  const [generateError, setGenerateError] = useState('')
 
   useEffect(() => {
     if (!restTimer) return
@@ -1120,10 +1133,67 @@ export default function PlanPage() {
     return () => clearTimeout(t)
   }, [restTimer])
 
+  // Rotate generating message every 3s while loading
+  useEffect(() => {
+    if (!isGenerating) return
+    const t = setInterval(() => {
+      setGeneratingMsgIdx(i => (i + 1) % GENERATING_MESSAGES.length)
+    }, 3000)
+    return () => clearInterval(t)
+  }, [isGenerating])
+
+  // Kick off generation when isGenerating becomes true and inputs are available
+  useEffect(() => {
+    if (!isGenerating || !inputs) return
+    let cancelled = false
+
+    const generate = async () => {
+      try {
+        const res = await fetch('/api/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inputs),
+        })
+        if (!res.ok) throw new Error('Generation failed')
+        const data = await res.json()
+        if (cancelled) return
+        sessionStorage.setItem('workout-plan', JSON.stringify(data))
+        sessionStorage.removeItem('plan-generating')
+        setPlan(data as PlanResponse)
+        setActiveDay(getInitialActiveDay((data as PlanResponse).plan.sessions))
+        setIsAccepted(false)
+        setIsGenerating(false)
+      } catch {
+        if (cancelled) return
+        setGenerateError('Something went wrong. Please try again.')
+        setIsGenerating(false)
+      }
+    }
+
+    generate()
+    return () => { cancelled = true }
+  }, [isGenerating, inputs])
+
   useEffect(() => {
     const supabase = createSupabaseBrowser()
 
     const loadData = async () => {
+      // If generation was requested from the onboarding, skip Supabase load
+      const isGeneratingFlag = sessionStorage.getItem('plan-generating') === '1'
+      const rawInputs = sessionStorage.getItem('workout-inputs')
+
+      if (isGeneratingFlag && rawInputs) {
+        const parsedInputs = JSON.parse(rawInputs) as GenerateRequest
+        setInputs(parsedInputs)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setUserId(user.id)
+          setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
+        }
+        setIsGenerating(true)
+        return
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
@@ -1154,7 +1224,6 @@ export default function PlanPage() {
           if (logsData) {
             const { start, end } = getCurrentWeekRange()
 
-            // Current week: iterate ASC so most recent per exercise wins
             const logsMap = new Map<string, SetLog[]>()
             ;[...logsData].reverse().forEach(log => {
               const loggedAt = new Date(log.logged_at)
@@ -1164,7 +1233,6 @@ export default function PlanPage() {
             })
             setAllLogs(logsMap)
 
-            // Prev logs: logsData is DESC so first occurrence = most recent
             const prevLogsMap = new Map<string, SetLog[]>()
             logsData.forEach(log => {
               const loggedAt = new Date(log.logged_at)
@@ -1184,7 +1252,6 @@ export default function PlanPage() {
       }
 
       const raw = sessionStorage.getItem('workout-plan')
-      const rawInputs = sessionStorage.getItem('workout-inputs')
       const storedPlanId = sessionStorage.getItem('plan-id')
       if (!raw) { router.replace('/'); return }
       const sessionPlan = JSON.parse(raw) as PlanResponse
@@ -1260,6 +1327,43 @@ export default function PlanPage() {
     setRestTimer({ remaining: restSeconds, total: restSeconds, minimized: false })
   }
 
+  if (isGenerating) {
+    return (
+      <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-5">
+        <div className="text-center max-w-xs">
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-8">Calisthenics</p>
+          {/* Steps indicator — step 4 of 4 complete + generating */}
+          <div className="flex gap-1 mb-10 justify-center">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className={`h-1 w-10 rounded-full ${i < 4 ? 'bg-primary' : 'bg-primary/30'}`} />
+            ))}
+          </div>
+          <div className="flex justify-center mb-6">
+            <svg className="animate-spin w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-3">Building your program</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed min-h-[2.5rem] transition-all">
+            {GENERATING_MESSAGES[generatingMsgIdx]}
+          </p>
+          {generateError && (
+            <div className="mt-6">
+              <p className="text-red-400 text-sm mb-4">{generateError}</p>
+              <button
+                onClick={() => router.replace('/')}
+                className="text-sm text-muted-foreground underline"
+              >
+                Go back and try again
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+    )
+  }
+
   if (!plan) return null
 
   const { level, goal, days_per_week, sessions } = plan.plan
@@ -1283,9 +1387,10 @@ export default function PlanPage() {
   const exercisesLoggedToday = logsForActiveDay.size
 
   const exercisesAtTarget = isAccepted && !isRestDay
-    ? activeSession.blocks.flatMap(b => b.exercises).filter(ex =>
-        isAtTarget(ex, logsForActiveDay.get(ex.name) ?? [])
-      )
+    ? activeSession.blocks
+        .filter(b => b.type !== 'stretch' && b.type !== 'cooldown')
+        .flatMap(b => b.exercises)
+        .filter(ex => isAtTarget(ex, logsForActiveDay.get(ex.name) ?? []))
     : []
 
   const sessionsThisWeek = new Set(Array.from(allLogs.keys()).map(k => k.split(':')[0])).size
@@ -1297,24 +1402,40 @@ export default function PlanPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="max-w-2xl mx-auto px-5 sm:px-8 py-8">
+      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-32' : 'pb-28'}`}>
 
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">
-            {firstName ? `${firstName}'s` : 'My'} program — {goal.toLowerCase()}.
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {level}
-            {equipment.filter(e => e !== 'floor').length > 0 && (
-              <> · {equipment.filter(e => e !== 'floor').map(e => EQUIPMENT_LABELS[e] ?? e).join(', ')}</>
-            )}
-            {' · '}
-            <a href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
-              Change
-            </a>
-          </p>
-        </div>
+        {!isAccepted ? (
+          <div className="mb-8">
+            {/* Onboarding steps — step 5 of 5 */}
+            <div className="flex gap-1 mb-6">
+              {[0, 1, 2, 3, 4].map(i => (
+                <div key={i} className="h-1 flex-1 rounded-full bg-primary" />
+              ))}
+            </div>
+            <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Your plan</p>
+            <h1 className="text-2xl font-bold text-foreground">Review and accept to start training.</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {level} · {goal.toLowerCase()}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-foreground">
+              {firstName ? `${firstName}'s` : 'My'} program — {goal.toLowerCase()}.
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {level}
+              {equipment.filter(e => e !== 'floor').length > 0 && (
+                <> · {equipment.filter(e => e !== 'floor').map(e => EQUIPMENT_LABELS[e] ?? e).join(', ')}</>
+              )}
+              {' · '}
+              <a href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
+                Change
+              </a>
+            </p>
+          </div>
+        )}
 
         {/* Week tabs */}
         {(() => {
@@ -1333,18 +1454,24 @@ export default function PlanPage() {
                       key={i}
                       onClick={() => setActiveDay(i)}
                       className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
-                        isActive ? 'bg-secondary shadow-sm' : 'hover:bg-secondary/40'
+                        isDone
+                          ? 'bg-primary shadow-sm'
+                          : isActive
+                          ? 'bg-secondary shadow-sm'
+                          : 'hover:bg-secondary/40'
                       }`}
                     >
                       <span className={`text-[11px] font-bold tracking-wide ${
-                        isActive
+                        isDone
+                          ? 'text-primary-foreground'
+                          : isActive
                           ? isRest ? 'text-teal-400' : 'text-primary'
                           : 'text-muted-foreground'
                       }`}>
                         {abbr}
                       </span>
                       {isDone ? (
-                        <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isRest ? (
@@ -1357,7 +1484,7 @@ export default function PlanPage() {
                         }`} />
                       )}
                       <div className={`w-1 h-1 rounded-full transition-colors ${
-                        isToday ? 'bg-amber-400' : 'bg-transparent'
+                        isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
                       }`} />
                     </button>
                   )
@@ -1428,29 +1555,36 @@ export default function PlanPage() {
           />
         )}
 
-        {/* Bottom actions */}
-        {inputs && (
-          <div className="mt-8 pb-6">
+      </div>
+
+      {/* Sticky bottom action bar */}
+      {inputs && (!isAccepted || (!isRestDay && isAccepted)) && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
             {!isAccepted ? (
-              <Button
-                onClick={handleAcceptPlan}
-                className="h-9 px-5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-              >
-                Accept plan →
-              </Button>
-            ) : !isRestDay ? (
+              <>
+                <p className="text-xs text-muted-foreground mb-3 text-center">
+                  Review the plan above, then accept it to start logging your workouts.
+                </p>
+                <Button
+                  onClick={handleAcceptPlan}
+                  className="w-full h-12 text-base bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+                >
+                  Accept plan →
+                </Button>
+              </>
+            ) : (
               <Button
                 onClick={() => setShowFinish(true)}
                 variant="outline"
-                className="h-9 px-5 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
+                className="w-full h-12 text-base border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
               >
                 Finish workout
               </Button>
-            ) : null}
+            )}
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
 
       {/* Rest timer overlay */}
       {restTimer && !restTimer.minimized && (

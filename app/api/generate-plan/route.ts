@@ -8,7 +8,8 @@ import { GenerateRequest } from '@/lib/types'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 function inputHash(level: string, equipment: string[], daysPerWeek: number, goal: string): string {
-  const key = [level, [...equipment].sort().join(','), daysPerWeek, goal].join('|')
+  // v2: busts plans with old "Day 1" day names and missing rest days
+  const key = ['v2', level, [...equipment].sort().join(','), daysPerWeek, goal].join('|')
   return createHash('sha256').update(key).digest('hex')
 }
 
