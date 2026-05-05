@@ -220,7 +220,7 @@ function RestTimerMini({ remaining, total, onExpand, onDismiss }: {
   const strokeDashoffset = circumference * (1 - progress)
 
   return (
-    <div className="fixed bottom-6 right-5 z-50 flex items-center gap-2 bg-card border border-border rounded-2xl px-3 py-2.5 shadow-2xl">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-card border border-border rounded-2xl px-3 py-2.5 shadow-2xl">
       <button onClick={onExpand} className="flex items-center gap-2.5">
         <div className="relative w-9 h-9 flex items-center justify-center shrink-0">
           <svg className="w-full h-full -rotate-90 absolute inset-0" viewBox="0 0 44 44">
@@ -368,6 +368,7 @@ function ExerciseCard({
 }: ExerciseCardProps) {
   const [adjusting, setAdjusting] = useState<'regression' | 'progression' | null>(null)
   const [limitMessage, setLimitMessage] = useState('')
+  const [previousExercise, setPreviousExercise] = useState<Exercise | null>(null)
 
   const [setLogs, setSetLogs] = useState<(SetLog | null)[]>(() => {
     const arr: (SetLog | null)[] = Array(exercise.sets).fill(null)
@@ -513,6 +514,7 @@ function ExerciseCard({
   const adjust = async (direction: 'regression' | 'progression') => {
     setAdjusting(direction)
     setLimitMessage('')
+    setPreviousExercise(null)
     try {
       const res = await fetch('/api/adjust-exercise', {
         method: 'POST',
@@ -524,6 +526,7 @@ function ExerciseCard({
       if (data.at_limit) {
         setLimitMessage(data.notes)
       } else {
+        setPreviousExercise(exercise)   // save before replacing
         onReplace(data)
         setSetLogs(Array(data.sets).fill(null))
         closePanel()
@@ -534,6 +537,14 @@ function ExerciseCard({
     } finally {
       setAdjusting(null)
     }
+  }
+
+  const handleUndo = () => {
+    if (!previousExercise) return
+    onReplace(previousExercise)
+    setSetLogs(Array(previousExercise.sets).fill(null))
+    onLogsChange([])
+    setPreviousExercise(null)
   }
 
   const activeTimerSet = (timer.phase === 'countdown' || timer.phase === 'running' || timer.phase === 'logged')
@@ -869,6 +880,15 @@ function ExerciseCard({
         {limitMessage && (
           <p className="text-xs text-amber-400 mt-2 leading-relaxed">{limitMessage}</p>
         )}
+        {previousExercise && (
+          <button
+            onClick={handleUndo}
+            className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span>↩</span>
+            Undo — back to {previousExercise.name}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -915,7 +935,7 @@ function BlockSection({
       <div className="flex flex-col gap-3">
         {block.exercises.map((ex, i) => (
           <ExerciseCard
-            key={`${ex.name}-${i}`}
+            key={i}
             exercise={ex}
             level={level}
             equipment={equipment}
@@ -1120,6 +1140,7 @@ export default function PlanPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingMsgIdx, setGeneratingMsgIdx] = useState(0)
   const [generateError, setGenerateError] = useState('')
+  const [loadKey, setLoadKey] = useState(0)
 
   useEffect(() => {
     if (!restTimer) return
@@ -1178,10 +1199,13 @@ export default function PlanPage() {
     const supabase = createSupabaseBrowser()
 
     const loadData = async () => {
-      // If generation was requested from the onboarding, skip Supabase load
       const isGeneratingFlag = sessionStorage.getItem('plan-generating') === '1'
       const rawInputs = sessionStorage.getItem('workout-inputs')
+      const rawPlan = sessionStorage.getItem('workout-plan')
+      const storedPlanId = sessionStorage.getItem('plan-id')
+      const storedAccepted = sessionStorage.getItem('plan-accepted')
 
+      // ── Path 1: onboarding generation in progress ──────────────────────────
       if (isGeneratingFlag && rawInputs) {
         const parsedInputs = JSON.parse(rawInputs) as GenerateRequest
         setInputs(parsedInputs)
@@ -1194,13 +1218,28 @@ export default function PlanPage() {
         return
       }
 
+      // ── Path 2: fresh unaccepted plan in sessionStorage (from account or ──
+      // ── onboarding after generation finished) — show it before Supabase  ──
+      if (rawPlan && !storedPlanId && !storedAccepted) {
+        const sessionPlan = JSON.parse(rawPlan) as PlanResponse
+        setPlan(sessionPlan)
+        if (rawInputs) setInputs(JSON.parse(rawInputs))
+        setIsAccepted(false)
+        setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setUserId(user.id)
+          setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
+        }
+        return
+      }
+
+      // ── Path 3: load from Supabase (returning user) ───────────────────────
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
         setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
-      }
 
-      if (user) {
         const { data: planRow } = await supabase
           .from('plans')
           .select('id, plan, inputs, created_at')
@@ -1223,7 +1262,6 @@ export default function PlanPage() {
 
           if (logsData) {
             const { start, end } = getCurrentWeekRange()
-
             const logsMap = new Map<string, SetLog[]>()
             ;[...logsData].reverse().forEach(log => {
               const loggedAt = new Date(log.logged_at)
@@ -1244,26 +1282,28 @@ export default function PlanPage() {
             setPrevLogs(prevLogsMap)
           }
 
-          const planSessions = (planRow.plan as PlanResponse).plan.sessions
-          setActiveDay(getInitialActiveDay(planSessions))
+          setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions))
           setIsAccepted(true)
           return
         }
       }
 
-      const raw = sessionStorage.getItem('workout-plan')
-      const storedPlanId = sessionStorage.getItem('plan-id')
-      if (!raw) { router.replace('/'); return }
-      const sessionPlan = JSON.parse(raw) as PlanResponse
-      setPlan(sessionPlan)
-      if (rawInputs) setInputs(JSON.parse(rawInputs))
-      if (storedPlanId) setPlanId(storedPlanId)
-      setIsAccepted(sessionStorage.getItem('plan-accepted') === '1')
-      setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
+      // ── Path 4: sessionStorage plan with plan-id (previously accepted) ─────
+      if (rawPlan) {
+        const sessionPlan = JSON.parse(rawPlan) as PlanResponse
+        setPlan(sessionPlan)
+        if (rawInputs) setInputs(JSON.parse(rawInputs))
+        if (storedPlanId) setPlanId(storedPlanId)
+        setIsAccepted(storedAccepted === '1')
+        setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
+        return
+      }
+
+      router.replace('/')
     }
 
     loadData()
-  }, [router])
+  }, [router, loadKey])
 
   const replaceExercise = (
     sessionIndex: number,
@@ -1304,6 +1344,18 @@ export default function PlanPage() {
       next.set(`${sessionDay}:${exerciseName}`, logs)
       return next
     })
+  }
+
+  const handleDiscardNewPlan = () => {
+    sessionStorage.removeItem('workout-plan')
+    sessionStorage.removeItem('workout-inputs')
+    sessionStorage.removeItem('plan-generating')
+    setPlan(null)
+    setPlanId(null)
+    setIsAccepted(false)
+    setAllLogs(new Map())
+    setPrevLogs(new Map())
+    setLoadKey(k => k + 1)
   }
 
   const handleAcceptPlan = async () => {
@@ -1402,7 +1454,7 @@ export default function PlanPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-32' : 'pb-28'}`}>
+      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-36' : ''}`}>
 
         {/* Header */}
         {!isAccepted ? (
@@ -1418,6 +1470,14 @@ export default function PlanPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {level} · {goal.toLowerCase()}
             </p>
+            {userId && (
+              <button
+                onClick={handleDiscardNewPlan}
+                className="mt-2 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
+              >
+                Discard and keep previous plan
+              </button>
+            )}
           </div>
         ) : (
           <div className="mb-6">
@@ -1555,33 +1615,34 @@ export default function PlanPage() {
           />
         )}
 
+        {/* Finish workout */}
+        {inputs && isAccepted && !isRestDay && (
+          <div className="mt-8 pb-6">
+            <Button
+              onClick={() => setShowFinish(true)}
+              variant="outline"
+              className="h-9 px-5 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
+            >
+              Finish workout
+            </Button>
+          </div>
+        )}
+
       </div>
 
-      {/* Sticky bottom action bar */}
-      {inputs && (!isAccepted || (!isRestDay && isAccepted)) && (
+      {/* Sticky bottom bar — accept plan only */}
+      {inputs && !isAccepted && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
-            {!isAccepted ? (
-              <>
-                <p className="text-xs text-muted-foreground mb-3 text-center">
-                  Review the plan above, then accept it to start logging your workouts.
-                </p>
-                <Button
-                  onClick={handleAcceptPlan}
-                  className="w-full h-12 text-base bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
-                >
-                  Accept plan →
-                </Button>
-              </>
-            ) : (
-              <Button
-                onClick={() => setShowFinish(true)}
-                variant="outline"
-                className="w-full h-12 text-base border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
-              >
-                Finish workout
-              </Button>
-            )}
+            <p className="text-xs text-muted-foreground mb-3 text-center">
+              Review the plan above, then accept it to start logging your workouts.
+            </p>
+            <Button
+              onClick={handleAcceptPlan}
+              className="w-full h-12 text-base bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+            >
+              Accept plan →
+            </Button>
           </div>
         </div>
       )}
