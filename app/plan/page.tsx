@@ -1440,7 +1440,7 @@ export default function PlanPage() {
 
   const exercisesAtTarget = isAccepted && !isRestDay
     ? activeSession.blocks
-        .filter(b => b.type !== 'stretch' && b.type !== 'cooldown')
+        .filter(b => b.type === 'strength' || b.type === 'accessory')
         .flatMap(b => b.exercises)
         .filter(ex => isAtTarget(ex, logsForActiveDay.get(ex.name) ?? []))
     : []
