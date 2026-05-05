@@ -1141,6 +1141,7 @@ export default function PlanPage() {
   const [generatingMsgIdx, setGeneratingMsgIdx] = useState(0)
   const [generateError, setGenerateError] = useState('')
   const [loadKey, setLoadKey] = useState(0)
+  const [sessionUndo, setSessionUndo] = useState<{ sessionIndex: number; session: Session } | null>(null)
 
   useEffect(() => {
     if (!restTimer) return
@@ -1512,35 +1513,37 @@ export default function PlanPage() {
                   return (
                     <button
                       key={i}
-                      onClick={() => setActiveDay(i)}
+                      onClick={() => { setActiveDay(i); setSessionUndo(null) }}
                       className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
-                        isDone
-                          ? 'bg-primary shadow-sm'
+                        isDone && isActive
+                          ? 'bg-emerald-500/20 border border-emerald-500/60 shadow-sm'
+                          : isDone
+                          ? 'bg-emerald-500/10 border border-emerald-500/25'
                           : isActive
-                          ? 'bg-secondary shadow-sm'
+                          ? 'bg-foreground shadow-sm'
                           : 'hover:bg-secondary/40'
                       }`}
                     >
                       <span className={`text-[11px] font-bold tracking-wide ${
                         isDone
-                          ? 'text-primary-foreground'
+                          ? 'text-emerald-500'
                           : isActive
-                          ? isRest ? 'text-teal-400' : 'text-primary'
+                          ? 'text-background'
                           : 'text-muted-foreground'
                       }`}>
                         {abbr}
                       </span>
                       {isDone ? (
-                        <svg className="w-3 h-3 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isRest ? (
                         <div className={`w-1.5 h-1.5 rounded-full border ${
-                          isActive ? 'border-teal-400' : 'border-border'
+                          isActive ? 'border-background' : 'border-border'
                         }`} />
                       ) : (
                         <div className={`w-1.5 h-1.5 rounded-full ${
-                          isActive ? 'bg-primary' : 'bg-muted-foreground/40'
+                          isActive ? 'bg-background' : 'bg-muted-foreground/40'
                         }`} />
                       )}
                       <div className={`w-1 h-1 rounded-full transition-colors ${
@@ -1596,14 +1599,33 @@ export default function PlanPage() {
           ))}
         </div>
 
-        {/* Progression banner — appears when 2+ exercises hit target */}
-        {inputs && exercisesAtTarget.length >= 2 && (
+        {/* Progression banner — appears when 2+ strength/accessory exercises hit target */}
+        {inputs && exercisesAtTarget.length >= 2 && !sessionUndo && (
           <ProgressionBanner
             exerciseNames={exercisesAtTarget.map(ex => ex.name)}
             session={activeSession}
             inputs={inputs}
-            onProgressed={(updated) => replaceSession(activeDay, updated)}
+            onProgressed={(updated) => {
+              setSessionUndo({ sessionIndex: activeDay, session: activeSession })
+              replaceSession(activeDay, updated)
+            }}
           />
+        )}
+
+        {/* Session undo notice — shown after progression until dismissed or day changes */}
+        {sessionUndo && sessionUndo.sessionIndex === activeDay && (
+          <div className="mt-6 flex items-center justify-between rounded-xl border border-border px-4 py-3">
+            <p className="text-sm text-muted-foreground">Session updated with harder exercises.</p>
+            <button
+              onClick={() => {
+                replaceSession(sessionUndo.sessionIndex, sessionUndo.session)
+                setSessionUndo(null)
+              }}
+              className="shrink-0 ml-4 flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>↩</span> Undo
+            </button>
+          </div>
         )}
 
         {/* Refine this day — only on accepted workout days */}
