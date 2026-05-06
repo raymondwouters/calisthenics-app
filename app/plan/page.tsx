@@ -1149,6 +1149,7 @@ export default function PlanPage() {
   const [generateError, setGenerateError] = useState('')
   const [loadKey, setLoadKey] = useState(0)
   const [sessionUndo, setSessionUndo] = useState<{ sessionIndex: number; session: Session } | null>(null)
+  const [finishedDays, setFinishedDays] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!restTimer) return
@@ -1212,6 +1213,9 @@ export default function PlanPage() {
       const rawPlan = sessionStorage.getItem('workout-plan')
       const storedPlanId = sessionStorage.getItem('plan-id')
       const storedAccepted = sessionStorage.getItem('plan-accepted')
+
+      const storedFinishedDays = JSON.parse(sessionStorage.getItem('finished-days') ?? '[]') as string[]
+      if (storedFinishedDays.length > 0) setFinishedDays(new Set(storedFinishedDays))
 
       // ── Path 1: onboarding generation in progress ──────────────────────────
       if (isGeneratingFlag && rawInputs) {
@@ -1349,7 +1353,21 @@ export default function PlanPage() {
   const updateLogs = (sessionDay: string, exerciseName: string, logs: SetLog[]) => {
     setAllLogs(prev => {
       const next = new Map(prev)
-      next.set(`${sessionDay}:${exerciseName}`, logs)
+      if (logs.length === 0) {
+        next.delete(`${sessionDay}:${exerciseName}`)
+      } else {
+        next.set(`${sessionDay}:${exerciseName}`, logs)
+      }
+      return next
+    })
+  }
+
+  const finishDay = (dayName: string) => {
+    setFinishedDays(prev => {
+      const next = new Set(prev)
+      next.add(dayName)
+      const stored = JSON.parse(sessionStorage.getItem('finished-days') ?? '[]') as string[]
+      sessionStorage.setItem('finished-days', JSON.stringify([...new Set([...stored, dayName])]))
       return next
     })
   }
@@ -1358,11 +1376,13 @@ export default function PlanPage() {
     sessionStorage.removeItem('workout-plan')
     sessionStorage.removeItem('workout-inputs')
     sessionStorage.removeItem('plan-generating')
+    sessionStorage.removeItem('finished-days')
     setPlan(null)
     setPlanId(null)
     setIsAccepted(false)
     setAllLogs(new Map())
     setPrevLogs(new Map())
+    setFinishedDays(new Set())
     setLoadKey(k => k + 1)
   }
 
@@ -1521,7 +1541,6 @@ export default function PlanPage() {
 
         {/* Week tabs */}
         {(() => {
-          const completedDays = new Set(Array.from(allLogs.keys()).map(k => k.split(':')[0]))
           return (
             <>
               <div className="bg-card rounded-2xl p-1 flex gap-0.5 mb-1">
@@ -1529,7 +1548,7 @@ export default function PlanPage() {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
                   const isToday = todaySessionIdx === i
-                  const isDone = !isRest && completedDays.has(session.day)
+                  const isDone = !isRest && finishedDays.has(session.day)
                   const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
                   return (
                     <button
@@ -1714,7 +1733,7 @@ export default function PlanPage() {
           displayName={displayName}
           setsLogged={setsLoggedToday}
           exercisesLogged={exercisesLoggedToday}
-          onClose={() => setShowFinish(false)}
+          onClose={() => { finishDay(activeSession.day); setShowFinish(false) }}
         />
       )}
     </main>
