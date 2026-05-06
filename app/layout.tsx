@@ -19,6 +19,16 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Unregister any stale service workers left from next-pwa */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(reg) { reg.unregister(); });
+            });
+          }
+        ` }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background">
         <Nav />
         <div className="flex-1">
