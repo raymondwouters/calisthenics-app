@@ -87,51 +87,70 @@ The JSON must follow this exact structure:
 }
 `
 
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      system: [
-        {
-          type: 'text',
-          text: getSkillPrompt(),
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [{ role: 'user', content: userMessage }],
-    })
-
-    if (message.stop_reason === 'max_tokens') {
-      console.error('Claude response truncated — plan too large')
-      return NextResponse.json(
-        { error: 'Plan was too large to generate. Try fewer days or less equipment.' },
-        { status: 500 }
-      )
-    }
-
-    const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      return NextResponse.json({ error: 'Failed to parse plan from AI response' }, { status: 500 })
-    }
-
-    const planData = JSON.parse(jsonMatch[0])
-
-    // Store in Supabase cache only for non-custom plans (fire and forget)
-    if (!changes) {
-      supabase
-        .from('cached_plans')
-        .insert({ input_hash: hash, plan: planData })
-        .then(({ error }) => {
-          if (error) console.error('Cache write error:', error.message)
-          else console.log('cache stored:', hash)
-        })
-    }
-
-    return NextResponse.json(planData)
-  } catch (err) {
-    console.error('Claude API error:', err)
-    return NextResponse.json({ error: 'Failed to generate plan' }, { status: 500 })
+  function isValidPlan(data: unknown): boolean {
+    if (!data || typeof data !== 'object') return false
+    const plan = (data as Record<string, unknown>).plan
+    if (!plan || typeof plan !== 'object') return false
+    const sessions = (plan as Record<string, unknown>).sessions
+    return Array.isArray(sessions) && sessions.length > 0
   }
+
+  let planData = null
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const message = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8000,
+        system: [
+          {
+            type: 'text',
+            text: getSkillPrompt(),
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [{ role: 'user', content: userMessage }],
+      })
+
+      if (message.stop_reason === 'max_tokens') {
+        console.error('Claude response truncated — plan too large')
+        if (attempt === 2) return NextResponse.json({ error: 'truncated' }, { status: 500 })
+        continue
+      }
+
+      const text = message.content[0].type === 'text' ? message.content[0].text : ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        console.error(`Attempt ${attempt}: no JSON found in response`)
+        if (attempt === 2) return NextResponse.json({ error: 'parse_failed' }, { status: 500 })
+        continue
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      if (!isValidPlan(parsed)) {
+        console.error(`Attempt ${attempt}: invalid plan structure`)
+        if (attempt === 2) return NextResponse.json({ error: 'invalid_structure' }, { status: 500 })
+        continue
+      }
+
+      planData = parsed
+      break
+    } catch (err) {
+      console.error(`Attempt ${attempt} error:`, err)
+      if (attempt === 2) return NextResponse.json({ error: 'api_error' }, { status: 500 })
+    }
+  }
+
+  // Store in Supabase cache only for non-custom plans (fire and forget)
+  if (!changes) {
+    supabase
+      .from('cached_plans')
+      .insert({ input_hash: hash, plan: planData })
+      .then(({ error }) => {
+        if (error) console.error('Cache write error:', error.message)
+        else console.log('cache stored:', hash)
+      })
+  }
+
+  return NextResponse.json(planData)
 }
 

@@ -1398,26 +1398,40 @@ export default function PlanPage() {
               <div key={i} className={`h-1 w-10 rounded-full ${i < 4 ? 'bg-primary' : 'bg-primary/30'}`} />
             ))}
           </div>
-          <div className="flex justify-center mb-6">
-            <svg className="animate-spin w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold mb-3">Building your program</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed min-h-[2.5rem] transition-all">
-            {GENERATING_MESSAGES[generatingMsgIdx]}
-          </p>
-          {generateError && (
-            <div className="mt-6">
-              <p className="text-red-400 text-sm mb-4">{generateError}</p>
+          {generateError ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
+                <h2 className="text-xl font-bold mb-2">We had a problem generating your program.</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Something went wrong on our end. Hit try again — it usually works straight away.
+                </p>
+              </div>
+              <button
+                onClick={() => { setGenerateError(''); setIsGenerating(true) }}
+                className="px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm"
+              >
+                Try again
+              </button>
               <button
                 onClick={() => router.replace('/')}
-                className="text-sm text-muted-foreground underline"
+                className="text-xs text-muted-foreground underline underline-offset-2"
               >
-                Go back and try again
+                Start over
               </button>
             </div>
+          ) : (
+            <>
+              <div className="flex justify-center mb-6">
+                <svg className="animate-spin w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold mb-3">Building your program</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed min-h-[2.5rem] transition-all">
+                {GENERATING_MESSAGES[generatingMsgIdx]}
+              </p>
+            </>
           )}
         </div>
       </main>
