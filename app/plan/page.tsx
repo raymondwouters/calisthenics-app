@@ -1480,7 +1480,7 @@ export default function PlanPage() {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
                   const isToday = todaySessionIdx === i
-                  const isDone = !isRest && finishedDays.has(session.day)
+                  const isDone = finishedDays.has(session.day)
                   const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
                   return (
                     <button
@@ -1605,6 +1605,19 @@ export default function PlanPage() {
               className="h-9 px-5 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
             >
               Finish workout
+            </Button>
+          </div>
+        )}
+
+        {/* Finish stretching session */}
+        {isAccepted && isRestDay && !finishedDays.has(activeSession.day) && (
+          <div className="mt-8 pb-6">
+            <Button
+              onClick={() => finishDay(activeSession.day)}
+              variant="outline"
+              className="h-9 px-5 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
+            >
+              Finish stretching session
             </Button>
           </div>
         )}
