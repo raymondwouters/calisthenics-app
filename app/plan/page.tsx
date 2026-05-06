@@ -126,12 +126,7 @@ function getTodayDayName(): string {
 function getInitialActiveDay(sessions: Session[]): number {
   const today = getTodayDayName()
   const todayIdx = sessions.findIndex(s => s.day === today)
-  if (todayIdx === -1) return 0
-  if (sessions[todayIdx].type !== 'rest') return todayIdx
-  for (let i = 1; i <= 6; i++) {
-    const idx = (todayIdx + i) % sessions.length
-    if (sessions[idx].type !== 'rest') return idx
-  }
+  if (todayIdx !== -1) return todayIdx
   return 0
 }
 
@@ -1515,7 +1510,7 @@ export default function PlanPage() {
           const completedDays = new Set(Array.from(allLogs.keys()).map(k => k.split(':')[0]))
           return (
             <>
-              <div className="bg-card rounded-2xl p-1 flex mb-1">
+              <div className="bg-card rounded-2xl p-1 flex gap-0.5 mb-1">
                 {sessions.map((session, i) => {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
@@ -1528,9 +1523,9 @@ export default function PlanPage() {
                       onClick={() => { setActiveDay(i); setSessionUndo(null) }}
                       className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
                         isDone && isActive
-                          ? 'bg-emerald-500/20 border border-emerald-500/60 shadow-sm'
+                          ? 'bg-[#7a9e87] shadow-sm ring-1 ring-[#7a9e87]'
                           : isDone
-                          ? 'bg-emerald-500/10 border border-emerald-500/25'
+                          ? 'bg-[#7a9e87]/75'
                           : isActive
                           ? 'bg-foreground shadow-sm'
                           : 'hover:bg-secondary/40'
@@ -1538,7 +1533,7 @@ export default function PlanPage() {
                     >
                       <span className={`text-[11px] font-bold tracking-wide ${
                         isDone
-                          ? 'text-emerald-500'
+                          ? 'text-white/90'
                           : isActive
                           ? 'text-background'
                           : 'text-muted-foreground'
@@ -1546,7 +1541,7 @@ export default function PlanPage() {
                         {abbr}
                       </span>
                       {isDone ? (
-                        <svg className="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isRest ? (
