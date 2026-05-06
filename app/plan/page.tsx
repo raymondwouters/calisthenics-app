@@ -963,67 +963,6 @@ function BlockSection({
   )
 }
 
-// ─── ProgressionBanner ───────────────────────────────────────────────────────
-
-interface ProgressionBannerProps {
-  exerciseNames: string[]
-  session: Session
-  inputs: GenerateRequest
-  onProgressed: (updated: Session) => void
-}
-
-function ProgressionBanner({ exerciseNames, session, inputs, onProgressed }: ProgressionBannerProps) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleProgress = async () => {
-    setLoading(true)
-    setError('')
-    const feedback = `I hit my target reps on all sets for: ${exerciseNames.join(', ')}. Progress each of these to the next harder variation.`
-    try {
-      const res = await fetch('/api/refine-day', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session, inputs, feedback }),
-      })
-      if (!res.ok) throw new Error('Refinement failed')
-      const data = await res.json()
-      onProgressed(data.session)
-    } catch {
-      setError('Something went wrong. Try again.')
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="mt-6 rounded-xl border border-green-400/30 bg-green-400/5 px-4 py-3.5 flex items-center justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-green-400 leading-snug">
-          Ready to progress on {exerciseNames.length} exercise{exerciseNames.length > 1 ? 's' : ''}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-          {exerciseNames.join(', ')}
-        </p>
-        {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-      </div>
-      <button
-        onClick={handleProgress}
-        disabled={loading}
-        className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-green-400/15 text-green-400 text-xs font-semibold hover:bg-green-400/25 disabled:opacity-50 transition-colors"
-      >
-        {loading ? (
-          <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-          </svg>
-        ) : (
-          <>Update session →</>
-        )}
-      </button>
-    </div>
-  )
-}
-
 // ─── RefineDayForm ────────────────────────────────────────────────────────────
 
 interface RefineDayFormProps {
@@ -1480,13 +1419,6 @@ export default function PlanPage() {
   const setsLoggedToday = Array.from(logsForActiveDay.values()).reduce((sum, logs) => sum + logs.length, 0)
   const exercisesLoggedToday = logsForActiveDay.size
 
-  const exercisesAtTarget = isAccepted && !isRestDay
-    ? activeSession.blocks
-        .filter(b => b.type === 'strength' || b.type === 'accessory')
-        .flatMap(b => b.exercises)
-        .filter(ex => isAtTarget(ex, logsForActiveDay.get(ex.name) ?? []))
-    : []
-
   const sessionsThisWeek = new Set(Array.from(allLogs.keys()).map(k => k.split(':')[0])).size
   const weekNumber = planCreatedAt ? getWeekNumber(planCreatedAt) : 1
 
@@ -1638,19 +1570,6 @@ export default function PlanPage() {
             />
           ))}
         </div>
-
-        {/* Progression banner — appears when 2+ strength/accessory exercises hit target */}
-        {inputs && exercisesAtTarget.length >= 2 && !sessionUndo && (
-          <ProgressionBanner
-            exerciseNames={exercisesAtTarget.map(ex => ex.name)}
-            session={activeSession}
-            inputs={inputs}
-            onProgressed={(updated) => {
-              setSessionUndo({ sessionIndex: activeDay, session: activeSession })
-              replaceSession(activeDay, updated)
-            }}
-          />
-        )}
 
         {/* Session undo notice — shown after progression until dismissed or day changes */}
         {sessionUndo && sessionUndo.sessionIndex === activeDay && (

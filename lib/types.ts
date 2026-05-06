@@ -55,3 +55,41 @@ export interface FeedbackPlanRequest {
   logs: ExerciseLog[]
   feedback: string
 }
+
+export interface ProgressionAnalysis {
+  summary: string
+  ready_to_progress: string[]
+  needs_regression: string[]
+  plateaued: Array<{
+    exercise: string
+    sessions_stable: number
+    recommendation: string
+  }>
+  insights: string[]
+}
+
+export interface NextWeekPlanRequest {
+  currentPlan: WorkoutPlan
+  inputs: GenerateRequest
+  analysis: ProgressionAnalysis
+}
+
+export interface NextWeekPlanResponse {
+  action: 'new_plan' | 'continue'
+  reason: string
+  weeks_to_continue?: number
+  changes?: Array<{ exercise: string; from: string; to: string }>
+  plan?: WorkoutPlan
+  planId?: string
+}
+
+export interface WeeklyFeedback {
+  id: string
+  action: 'new_plan' | 'continue'
+  reason: string
+  weeks_to_continue?: number
+  changes?: Array<{ exercise: string; from: string; to: string }>
+  analysis: ProgressionAnalysis
+  plan_id?: string
+  created_at: string
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
-import { SetLog } from '@/lib/types'
+import { SetLog, WeeklyFeedback } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,6 +188,7 @@ export default function ProgressionPage() {
   const router = useRouter()
   const [progressions, setProgressions] = useState<ExerciseProgression[]>([])
   const [loading, setLoading] = useState(true)
+  const [weeklyFeedback, setWeeklyFeedback] = useState<WeeklyFeedback | null>(null)
 
   useEffect(() => {
     const supabase = createSupabaseBrowser()
@@ -195,16 +196,30 @@ export default function ProgressionPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/login'); return }
 
-      const { data: logsData } = await supabase
-        .from('exercise_logs')
-        .select('exercise_name, sets_data, logged_at, session_day')
-        .eq('user_id', user.id)
-        .order('logged_at', { ascending: false })
-        .limit(2000)
+      const [logsResult, feedbackResult] = await Promise.all([
+        supabase
+          .from('exercise_logs')
+          .select('exercise_name, sets_data, logged_at, session_day')
+          .eq('user_id', user.id)
+          .order('logged_at', { ascending: false })
+          .limit(2000),
+        supabase
+          .from('weekly_feedback')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
-      if (logsData && logsData.length > 0) {
-        setProgressions(buildProgressions(logsData as LogRow[]))
+      if (logsResult.data && logsResult.data.length > 0) {
+        setProgressions(buildProgressions(logsResult.data as LogRow[]))
       }
+
+      if (feedbackResult.data) {
+        setWeeklyFeedback(feedbackResult.data as WeeklyFeedback)
+      }
+
       setLoading(false)
     }
     load()
@@ -232,6 +247,103 @@ export default function ProgressionPage() {
           <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-1">Training</p>
           <h1 className="text-2xl font-bold text-foreground">Progression</h1>
         </div>
+
+        {/* ─── Weekly Feedback Box ─── */}
+        {weeklyFeedback && (
+          <div className="bg-secondary/50 rounded-2xl p-5 mb-8 flex flex-col gap-4">
+
+            <p className="text-sm text-foreground leading-relaxed">{weeklyFeedback.analysis.summary}</p>
+
+            {weeklyFeedback.analysis.ready_to_progress.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Ready to progress</p>
+                <div className="flex flex-wrap gap-2">
+                  {weeklyFeedback.analysis.ready_to_progress.map(ex => (
+                    <span key={ex} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {weeklyFeedback.analysis.plateaued.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
+                <div className="flex flex-col gap-1.5">
+                  {weeklyFeedback.analysis.plateaued.map(p => (
+                    <div key={p.exercise} className="flex items-start gap-2">
+                      <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
+                      <span className="text-xs text-muted-foreground pt-1">{p.recommendation}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {weeklyFeedback.analysis.needs_regression.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-red-500 uppercase mb-2">Needs easier variation</p>
+                <div className="flex flex-wrap gap-2">
+                  {weeklyFeedback.analysis.needs_regression.map(ex => (
+                    <span key={ex} className="text-xs font-medium text-red-600 bg-red-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {weeklyFeedback.analysis.insights.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Insights</p>
+                <ul className="flex flex-col gap-1">
+                  {weeklyFeedback.analysis.insights.map((insight, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                      <span className="text-accent mt-0.5">·</span>
+                      {insight}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="border-t border-border/60 pt-4 flex flex-col gap-3">
+              {weeklyFeedback.action === 'new_plan' ? (
+                <>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-0.5">Plan updated for next week</p>
+                    <p className="text-xs text-muted-foreground">{weeklyFeedback.reason}</p>
+                  </div>
+                  {weeklyFeedback.changes && weeklyFeedback.changes.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">What changes</p>
+                      <div className="flex flex-col gap-2">
+                        {weeklyFeedback.changes.map((c, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs flex-wrap">
+                            <span className="font-medium text-foreground">{c.exercise}</span>
+                            <span className="text-muted-foreground line-through">{c.from}</span>
+                            <svg className="w-3 h-3 text-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span className="font-semibold text-primary">{c.to}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-1">Keep going</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{weeklyFeedback.reason}</p>
+                  {weeklyFeedback.weeks_to_continue && (
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Next check-in in <span className="font-semibold text-foreground">{weeklyFeedback.weeks_to_continue} week{weeklyFeedback.weeks_to_continue !== 1 ? 's' : ''}</span>.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
 
         {progressions.length === 0 ? (
           <div className="text-center py-16">

@@ -1,8 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSkillPrompt } from '@/lib/skill'
-import { supabase } from '@/lib/supabase'
-import { createSupabaseServer } from '@/lib/supabase-server'
+import { saveUserPlan } from '@/lib/plan-utils'
 import { FeedbackPlanRequest } from '@/lib/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -101,27 +100,5 @@ The JSON must follow this exact structure:
   } catch (err) {
     console.error('Feedback plan error:', err)
     return NextResponse.json({ error: 'Failed to update plan' }, { status: 500 })
-  }
-}
-
-async function saveUserPlan(planData: object, inputs: object): Promise<string | null> {
-  try {
-    const serverClient = await createSupabaseServer()
-    const { data: { user } } = await serverClient.auth.getUser()
-    if (!user) return null
-
-    const { data, error } = await supabase
-      .from('plans')
-      .insert({ user_id: user.id, plan: planData, inputs })
-      .select('id')
-      .single()
-
-    if (error) {
-      console.error('Plan save error:', error.message)
-      return null
-    }
-    return data.id
-  } catch {
-    return null
   }
 }
