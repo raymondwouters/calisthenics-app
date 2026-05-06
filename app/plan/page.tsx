@@ -1498,9 +1498,9 @@ export default function PlanPage() {
                       onClick={() => { setActiveDay(i); setSessionUndo(null) }}
                       className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
                         isDone && isActive
-                          ? 'bg-[#7a9e87] shadow-sm ring-1 ring-[#7a9e87]'
+                          ? 'bg-primary shadow-sm ring-1 ring-primary'
                           : isDone
-                          ? 'bg-[#7a9e87]/75'
+                          ? 'bg-primary/75'
                           : isActive
                           ? 'bg-foreground shadow-sm'
                           : 'hover:bg-secondary/40'
@@ -1631,8 +1631,7 @@ export default function PlanPage() {
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
             <Button
               onClick={() => isRestDay ? finishDay(activeSession.day) : setShowFinish(true)}
-              className="w-full h-12 text-base font-bold text-white"
-              style={{ backgroundColor: '#7a9e87' }}
+              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {isRestDay ? 'Finish stretching session' : 'Finish workout'}
             </Button>
