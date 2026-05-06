@@ -1153,7 +1153,10 @@ export default function PlanPage() {
       const storedPlanId = sessionStorage.getItem('plan-id')
       const storedAccepted = sessionStorage.getItem('plan-accepted')
 
-      const storedFinishedDays = JSON.parse(sessionStorage.getItem('finished-days') ?? '[]') as string[]
+      // finished-days now keyed by planId; fall back to legacy key for old sessions
+      const storedPlanIdForDays = sessionStorage.getItem('plan-id')
+      const localKey = storedPlanIdForDays ? `finished-days-${storedPlanIdForDays}` : 'finished-days'
+      const storedFinishedDays = JSON.parse(localStorage.getItem(localKey) ?? localStorage.getItem('finished-days') ?? '[]') as string[]
       if (storedFinishedDays.length > 0) setFinishedDays(new Set(storedFinishedDays))
 
       // ── Path 1: onboarding generation in progress ──────────────────────────
@@ -1193,7 +1196,7 @@ export default function PlanPage() {
 
         const { data: planRow } = await supabase
           .from('plans')
-          .select('id, plan, inputs, created_at')
+          .select('id, plan, inputs, created_at, finished_days')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -1204,6 +1207,8 @@ export default function PlanPage() {
           setPlanId(planRow.id)
           setInputs(planRow.inputs as GenerateRequest)
           setPlanCreatedAt(new Date(planRow.created_at))
+          const dbDays = (planRow as { finished_days?: string[] }).finished_days ?? []
+          if (dbDays.length > 0) setFinishedDays(new Set(dbDays))
 
           const { data: logsData } = await supabase
             .from('exercise_logs')
@@ -1305,8 +1310,12 @@ export default function PlanPage() {
     setFinishedDays(prev => {
       const next = new Set(prev)
       next.add(dayName)
-      const stored = JSON.parse(sessionStorage.getItem('finished-days') ?? '[]') as string[]
-      sessionStorage.setItem('finished-days', JSON.stringify([...new Set([...stored, dayName])]))
+      const allDays = [...next]
+      localStorage.setItem(`finished-days-${planId ?? 'local'}`, JSON.stringify(allDays))
+      if (planId) {
+        const sb = createSupabaseBrowser()
+        sb.from('plans').update({ finished_days: allDays }).eq('id', planId).then(() => {})
+      }
       return next
     })
   }
@@ -1315,7 +1324,8 @@ export default function PlanPage() {
     sessionStorage.removeItem('workout-plan')
     sessionStorage.removeItem('workout-inputs')
     sessionStorage.removeItem('plan-generating')
-    sessionStorage.removeItem('finished-days')
+    localStorage.removeItem(`finished-days-${planId ?? 'local'}`)
+    localStorage.removeItem('finished-days')
     setPlan(null)
     setPlanId(null)
     setIsAccepted(false)
@@ -1428,7 +1438,7 @@ export default function PlanPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-36' : ''}`}>
+      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-36' : isAccepted && !finishedDays.has(activeSession.day) ? 'pb-28' : ''}`}>
 
         {/* Header */}
         {!isAccepted ? (
@@ -1596,32 +1606,6 @@ export default function PlanPage() {
           />
         )}
 
-        {/* Finish workout */}
-        {inputs && isAccepted && !isRestDay && (
-          <div className="mt-8 pb-6">
-            <Button
-              onClick={() => setShowFinish(true)}
-              variant="outline"
-              className="h-9 px-5 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
-            >
-              Finish workout
-            </Button>
-          </div>
-        )}
-
-        {/* Finish stretching session */}
-        {isAccepted && isRestDay && !finishedDays.has(activeSession.day) && (
-          <div className="mt-8 pb-6">
-            <Button
-              onClick={() => finishDay(activeSession.day)}
-              variant="outline"
-              className="h-9 px-5 text-sm border-border text-foreground/80 bg-transparent hover:bg-secondary hover:text-foreground font-semibold"
-            >
-              Finish stretching session
-            </Button>
-          </div>
-        )}
-
       </div>
 
       {/* Sticky bottom bar — accept plan only */}
@@ -1636,6 +1620,21 @@ export default function PlanPage() {
               className="w-full h-12 text-base bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
             >
               Accept plan →
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Sticky bottom bar — finish workout / finish stretching */}
+      {isAccepted && !finishedDays.has(activeSession.day) && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
+            <Button
+              onClick={() => isRestDay ? finishDay(activeSession.day) : setShowFinish(true)}
+              className="w-full h-12 text-base font-bold text-white"
+              style={{ backgroundColor: '#7a9e87' }}
+            >
+              {isRestDay ? 'Finish stretching session' : 'Finish workout'}
             </Button>
           </div>
         </div>
