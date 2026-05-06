@@ -145,7 +145,8 @@ function getWeekNumber(planCreatedAt: Date): number {
   return Math.floor((currentWeekStart.getTime() - planWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
 }
 
-function formatPrevLog(log: SetLog): string {
+function formatPrevLog(log: SetLog | null | undefined): string {
+  if (!log) return '✓'
   if (log.duration_s !== undefined) return `${log.duration_s}s`
   if (log.reps !== undefined) {
     if (log.weight_kg) return `${log.reps}×${log.weight_kg}kg`
@@ -375,6 +376,17 @@ function ExerciseCard({
     initialLogs.forEach((log, i) => { if (i < exercise.sets) arr[i] = log })
     return arr
   })
+
+  // Sync setLogs length when exercise.sets changes (e.g. after swap via too easy/hard)
+  useEffect(() => {
+    setSetLogs(prev => {
+      if (prev.length === exercise.sets) return prev
+      const arr: (SetLog | null)[] = Array(exercise.sets).fill(null)
+      prev.forEach((log, i) => { if (i < exercise.sets && log !== null && log !== undefined) arr[i] = log })
+      return arr
+    })
+  }, [exercise.sets])
+
   const [selectedSetIndex, setSelectedSetIndex] = useState<number | null>(null)
   const [showManual, setShowManual] = useState(false)
   const [inputValue, setInputValue] = useState('')
@@ -599,7 +611,7 @@ function ExerciseCard({
             {Array.from({ length: exercise.sets }).map((_, i) => {
               const isRunningThis = activeTimerSet === i
               const isSelected = selectedSetIndex === i && !timerActive
-              const log = setLogs[i]
+              const log = setLogs[i] ?? null
               const isDone = log !== null
               return (
                 <button
