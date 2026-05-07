@@ -346,7 +346,7 @@ interface ExerciseCardProps {
   onReplace: (updated: Exercise) => void
   onLogsChange: (logs: SetLog[]) => void
   onSetLogged: (restSeconds: number) => void
-  onAdjusted: () => void
+  onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
 }
@@ -566,7 +566,7 @@ function ExerciseCard({
             setUndoCountdown(remaining)
           }
         }, 1000)
-        onAdjusted()
+        onAdjusted(exercise.name, sessionDay)
       }
     } catch {
       setLimitMessage('Could not adjust exercise. Try again.')
@@ -949,7 +949,7 @@ interface BlockSectionProps {
   onReplaceExercise: (exerciseIndex: number, updated: Exercise) => void
   onLogsChange: (exerciseName: string, logs: SetLog[]) => void
   onSetLogged: (restSeconds: number) => void
-  onAdjusted: () => void
+  onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
 }
@@ -1133,7 +1133,7 @@ export default function PlanPage() {
   useEffect(() => { planRef.current = plan }, [plan])
   const pendingSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const schedulePlanSave = () => {
+  const schedulePlanSave = (oldExerciseName: string, sessionDay: string) => {
     if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current)
     pendingSaveRef.current = setTimeout(() => {
       pendingSaveRef.current = null
@@ -1144,6 +1144,14 @@ export default function PlanPage() {
       supabase.from('plans').update({ plan: currentPlan }).eq('id', currentPlanId).then(({ error }) => {
         if (error) console.error('Plan save error:', error.message)
       })
+      supabase.from('exercise_logs')
+        .delete()
+        .eq('plan_id', currentPlanId)
+        .eq('session_day', sessionDay)
+        .eq('exercise_name', oldExerciseName)
+        .then(({ error }) => {
+          if (error) console.error('Log cleanup error:', error.message)
+        })
     }, UNDO_SECONDS * 1000)
   }
 
