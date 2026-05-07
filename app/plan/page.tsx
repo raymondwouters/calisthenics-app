@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const UNDO_SECONDS = 10
+
 const BLOCK_LABELS: Record<string, string> = {
   warmup: 'Warm-up',
   skill: 'Skill Practice',
@@ -344,6 +346,8 @@ interface ExerciseCardProps {
   onReplace: (updated: Exercise) => void
   onLogsChange: (logs: SetLog[]) => void
   onSetLogged: (restSeconds: number) => void
+  onAdjusted: () => void
+  onUndone: () => void
   isPreview: boolean
 }
 
@@ -360,11 +364,15 @@ function ExerciseCard({
   onReplace,
   onLogsChange,
   onSetLogged,
+  onAdjusted,
+  onUndone,
   isPreview,
 }: ExerciseCardProps) {
   const [adjusting, setAdjusting] = useState<'regression' | 'progression' | null>(null)
   const [limitMessage, setLimitMessage] = useState('')
   const [previousExercise, setPreviousExercise] = useState<Exercise | null>(null)
+  const [undoCountdown, setUndoCountdown] = useState<number | null>(null)
+  const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [setLogs, setSetLogs] = useState<(SetLog | null)[]>(() => {
     const arr: (SetLog | null)[] = Array(exercise.sets).fill(null)
@@ -390,6 +398,12 @@ function ExerciseCard({
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+    }
+  }, [])
 
   const timed = isTimed(exercise.reps)
   const atTarget = isAtTarget(exercise, setLogs)
@@ -538,6 +552,21 @@ function ExerciseCard({
         setSetLogs(Array(data.sets).fill(null))
         closePanel()
         onLogsChange([])
+        if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+        setUndoCountdown(UNDO_SECONDS)
+        let remaining = UNDO_SECONDS
+        undoIntervalRef.current = setInterval(() => {
+          remaining -= 1
+          if (remaining <= 0) {
+            clearInterval(undoIntervalRef.current!)
+            undoIntervalRef.current = null
+            setUndoCountdown(null)
+            setPreviousExercise(null)
+          } else {
+            setUndoCountdown(remaining)
+          }
+        }, 1000)
+        onAdjusted()
       }
     } catch {
       setLimitMessage('Could not adjust exercise. Try again.')
@@ -548,6 +577,10 @@ function ExerciseCard({
 
   const handleUndo = () => {
     if (!previousExercise) return
+    if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+    undoIntervalRef.current = null
+    setUndoCountdown(null)
+    onUndone()
     onReplace(previousExercise)
     setSetLogs(Array(previousExercise.sets).fill(null))
     onLogsChange([])
@@ -893,7 +926,7 @@ function ExerciseCard({
             className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <span>↩</span>
-            Undo — back to {previousExercise.name}
+            Undo — back to {previousExercise.name}{undoCountdown !== null ? ` (${undoCountdown}s)` : ''}
           </button>
         )}
       </div>
@@ -916,6 +949,8 @@ interface BlockSectionProps {
   onReplaceExercise: (exerciseIndex: number, updated: Exercise) => void
   onLogsChange: (exerciseName: string, logs: SetLog[]) => void
   onSetLogged: (restSeconds: number) => void
+  onAdjusted: () => void
+  onUndone: () => void
   isPreview: boolean
 }
 
@@ -932,6 +967,8 @@ function BlockSection({
   onReplaceExercise,
   onLogsChange,
   onSetLogged,
+  onAdjusted,
+  onUndone,
   isPreview,
 }: BlockSectionProps) {
   return (
@@ -955,6 +992,8 @@ function BlockSection({
             onReplace={(updated) => onReplaceExercise(i, updated)}
             onLogsChange={(logs) => onLogsChange(ex.name, logs)}
             onSetLogged={onSetLogged}
+            onAdjusted={onAdjusted}
+            onUndone={onUndone}
             isPreview={isPreview}
           />
         ))}
@@ -1089,6 +1128,31 @@ export default function PlanPage() {
   const [loadKey, setLoadKey] = useState(0)
   const [sessionUndo, setSessionUndo] = useState<{ sessionIndex: number; session: Session } | null>(null)
   const [finishedDays, setFinishedDays] = useState<Set<string>>(new Set())
+
+  const planRef = useRef(plan)
+  useEffect(() => { planRef.current = plan }, [plan])
+  const pendingSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const schedulePlanSave = () => {
+    if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current)
+    pendingSaveRef.current = setTimeout(() => {
+      pendingSaveRef.current = null
+      const currentPlanId = planId
+      const currentPlan = planRef.current
+      if (!currentPlanId || !currentPlan) return
+      const supabase = createSupabaseBrowser()
+      supabase.from('plans').update({ plan: currentPlan }).eq('id', currentPlanId).then(({ error }) => {
+        if (error) console.error('Plan save error:', error.message)
+      })
+    }, UNDO_SECONDS * 1000)
+  }
+
+  const cancelPlanSave = () => {
+    if (pendingSaveRef.current) {
+      clearTimeout(pendingSaveRef.current)
+      pendingSaveRef.current = null
+    }
+  }
 
   useEffect(() => {
     if (!restTimer) return
@@ -1576,6 +1640,8 @@ export default function PlanPage() {
                 updateLogs(activeSession.day, exerciseName, logs)
               }
               onSetLogged={handleSetLogged}
+              onAdjusted={schedulePlanSave}
+              onUndone={cancelPlanSave}
               isPreview={!isAccepted || isRestDay}
             />
           ))}
