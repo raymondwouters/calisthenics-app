@@ -1694,7 +1694,7 @@ export default function PlanPage() {
       {/* Sticky bottom bar — finish workout / finish stretching */}
       {isAccepted && !finishedDays.has(activeSession.day) && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
-          <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
+          <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button
               onClick={() => isRestDay ? finishDay(activeSession.day) : setShowFinish(true)}
               className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
