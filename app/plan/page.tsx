@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest } from '@/lib/types'
+import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -119,6 +119,10 @@ function getCurrentWeekRange(): { start: Date; end: Date } {
   sunday.setDate(monday.getDate() + 6)
   sunday.setHours(23, 59, 59, 999)
   return { start: monday, end: sunday }
+}
+
+function getCurrentWeekStart(): string {
+  return getCurrentWeekRange().start.toISOString()
 }
 
 function getTodayDayName(): string {
@@ -384,15 +388,14 @@ function ExerciseCard({
     return arr
   })
 
-  // Sync setLogs length when exercise.sets changes (e.g. after swap via too easy/hard)
+  // Sync setLogs when initialLogs or exercise.sets changes (handles DB load completing after mount)
   useEffect(() => {
-    setSetLogs(prev => {
-      if (prev.length === exercise.sets) return prev
+    setSetLogs(() => {
       const arr: (SetLog | null)[] = Array(exercise.sets).fill(null)
-      prev.forEach((log, i) => { if (i < exercise.sets && log !== null && log !== undefined) arr[i] = log })
+      initialLogs.forEach((log, i) => { if (i < exercise.sets) arr[i] = log })
       return arr
     })
-  }, [exercise.sets])
+  }, [initialLogs, exercise.sets])
 
   const [selectedSetIndex, setSelectedSetIndex] = useState<number | null>(null)
   const [showManual, setShowManual] = useState(false)
@@ -402,12 +405,47 @@ function ExerciseCard({
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const currentLogsRef = useRef<SetLog[]>([])
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
   }, [])
+
+  function schedulePersist(filledLogs: SetLog[]) {
+    currentLogsRef.current = filledLogs
+    if (!planId || !userId) return
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      persistTimerRef.current = null
+      const logs = currentLogsRef.current
+      const supabase = createSupabaseBrowser()
+      const weekStart = getCurrentWeekStart()
+      supabase.from('exercise_logs')
+        .delete()
+        .eq('plan_id', planId)
+        .eq('session_day', sessionDay)
+        .eq('exercise_name', exercise.name)
+        .gte('logged_at', weekStart)
+        .then(({ error }) => {
+          if (error) { console.error('Log delete error:', error.message); return }
+          if (logs.length > 0) {
+            supabase.from('exercise_logs').insert({
+              user_id: userId,
+              plan_id: planId,
+              session_day: sessionDay,
+              exercise_name: exercise.name,
+              sets_data: logs,
+            }).then(({ error: e }) => {
+              if (e) console.error('Log save error:', e.message)
+            })
+          }
+        })
+    }, 400)
+  }
 
   const timed = isTimed(exercise.reps)
   const atTarget = isAtTarget(exercise, setLogs)
@@ -466,6 +504,7 @@ function ExerciseCard({
     setSetLogs(updated)
     const filledLogs = updated.filter((l): l is SetLog => l !== null)
     onLogsChange(filledLogs)
+    schedulePersist(filledLogs)
     closePanel()
   }
 
@@ -522,18 +561,7 @@ function ExerciseCard({
       onSetLogged(exercise.rest_seconds)
     }
 
-    if (planId && userId) {
-      const supabase = createSupabaseBrowser()
-      supabase.from('exercise_logs').insert({
-        user_id: userId,
-        plan_id: planId,
-        session_day: sessionDay,
-        exercise_name: exercise.name,
-        sets_data: filledLogs,
-      }).then(({ error }) => {
-        if (error) console.error('Log save error:', error.message)
-      })
-    }
+    schedulePersist(filledLogs)
   }
 
   const adjust = async (direction: 'regression' | 'progression') => {
@@ -1102,6 +1130,62 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
   )
 }
 
+// ─── FinishWeekOverlay ────────────────────────────────────────────────────────
+
+interface FinishWeekOverlayProps {
+  result: NextWeekPlanResponse
+  onClose: () => void
+}
+
+function FinishWeekOverlay({ result, onClose }: FinishWeekOverlayProps) {
+  const isContinue = result.action === 'continue'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-2xl bg-card border-t border-border rounded-t-3xl px-6 pt-6 pb-12 flex flex-col gap-5">
+        <div className="w-10 h-1 bg-border rounded-full mb-1 mx-auto" />
+
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Week afgerond</p>
+          <h2 className="text-2xl font-black text-foreground leading-tight">
+            {isContinue ? 'Goed bezig — door met dit schema.' : 'Nieuw schema klaar.'}
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{result.reason}</p>
+        </div>
+
+        {isContinue && result.weeks_to_continue && (
+          <div className="bg-secondary rounded-xl px-4 py-3">
+            <p className="text-sm text-foreground">
+              Nog <span className="font-bold">{result.weeks_to_continue}</span> week{result.weeks_to_continue !== 1 ? 'en' : ''} op dit schema.
+            </p>
+          </div>
+        )}
+
+        {!isContinue && result.changes && result.changes.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Aanpassingen</p>
+            {result.changes.map((c, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className="text-foreground font-medium">{c.exercise}</span>
+                <span className="text-muted-foreground">{c.from}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="text-primary font-medium">{c.to}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <Button
+          onClick={onClose}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12 mt-2"
+        >
+          {isContinue ? 'Sluiten' : 'Nieuw schema laden →'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // ─── PlanPage ─────────────────────────────────────────────────────────────────
 
 const GENERATING_MESSAGES = [
@@ -1125,13 +1209,14 @@ export default function PlanPage() {
   const [planCreatedAt, setPlanCreatedAt] = useState<Date | null>(null)
   const [isAccepted, setIsAccepted] = useState(false)
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean } | null>(null)
-  const [showFinish, setShowFinish] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(true)
   const [generatingMsgIdx, setGeneratingMsgIdx] = useState(0)
   const [generateError, setGenerateError] = useState('')
   const [loadKey, setLoadKey] = useState(0)
   const [sessionUndo, setSessionUndo] = useState<{ sessionIndex: number; session: Session } | null>(null)
-  const [finishedDays, setFinishedDays] = useState<Set<string>>(new Set())
+  const [isFinishingWeek, setIsFinishingWeek] = useState(false)
+  const [weekFinishResult, setWeekFinishResult] = useState<NextWeekPlanResponse | null>(null)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1223,117 +1308,113 @@ export default function PlanPage() {
     const supabase = createSupabaseBrowser()
 
     const loadData = async () => {
-      const isGeneratingFlag = sessionStorage.getItem('plan-generating') === '1'
-      const rawInputs = sessionStorage.getItem('workout-inputs')
-      const rawPlan = sessionStorage.getItem('workout-plan')
-      const storedPlanId = sessionStorage.getItem('plan-id')
-      const storedAccepted = sessionStorage.getItem('plan-accepted')
+      try {
+        const isGeneratingFlag = sessionStorage.getItem('plan-generating') === '1'
+        const rawInputs = sessionStorage.getItem('workout-inputs')
+        const rawPlan = sessionStorage.getItem('workout-plan')
+        const storedPlanId = sessionStorage.getItem('plan-id')
+        const storedAccepted = sessionStorage.getItem('plan-accepted')
 
-      // finished-days now keyed by planId; fall back to legacy key for old sessions
-      const storedPlanIdForDays = sessionStorage.getItem('plan-id')
-      const localKey = storedPlanIdForDays ? `finished-days-${storedPlanIdForDays}` : 'finished-days'
-      const storedFinishedDays = JSON.parse(localStorage.getItem(localKey) ?? localStorage.getItem('finished-days') ?? '[]') as string[]
-      if (storedFinishedDays.length > 0) setFinishedDays(new Set(storedFinishedDays))
-
-      // ── Path 1: onboarding generation in progress ──────────────────────────
-      if (isGeneratingFlag && rawInputs) {
-        const parsedInputs = JSON.parse(rawInputs) as GenerateRequest
-        setInputs(parsedInputs)
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          setUserId(user.id)
-          setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
-        }
-        setIsGenerating(true)
-        return
-      }
-
-      // ── Path 2: fresh unaccepted plan in sessionStorage (from account or ──
-      // ── onboarding after generation finished) — show it before Supabase  ──
-      if (rawPlan && !storedPlanId && !storedAccepted) {
-        const sessionPlan = JSON.parse(rawPlan) as PlanResponse
-        setPlan(sessionPlan)
-        if (rawInputs) setInputs(JSON.parse(rawInputs))
-        setIsAccepted(false)
-        setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          setUserId(user.id)
-          setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
-        }
-        return
-      }
-
-      // ── Path 3: load from Supabase (returning user) ───────────────────────
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUserId(user.id)
-        setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
-
-        const { data: planRow } = await supabase
-          .from('plans')
-          .select('id, plan, inputs, created_at, finished_days')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (planRow) {
-          setPlan(planRow.plan as PlanResponse)
-          setPlanId(planRow.id)
-          setInputs(planRow.inputs as GenerateRequest)
-          setPlanCreatedAt(new Date(planRow.created_at))
-          const dbDays = (planRow as { finished_days?: string[] }).finished_days ?? []
-          if (dbDays.length > 0) setFinishedDays(new Set(dbDays))
-
-          const { data: logsData } = await supabase
-            .from('exercise_logs')
-            .select('session_day, exercise_name, sets_data, logged_at')
-            .eq('plan_id', planRow.id)
-            .order('logged_at', { ascending: false })
-
-          if (logsData) {
-            const { start, end } = getCurrentWeekRange()
-            const logsMap = new Map<string, Map<string, SetLog[]>>()
-            ;[...logsData].reverse().forEach(log => {
-              const loggedAt = new Date(log.logged_at)
-              if (loggedAt >= start && loggedAt <= end) {
-                if (!logsMap.has(log.session_day)) logsMap.set(log.session_day, new Map())
-                logsMap.get(log.session_day)!.set(log.exercise_name, log.sets_data)
-              }
-            })
-            setAllLogs(logsMap)
-
-            const prevLogsMap = new Map<string, Map<string, SetLog[]>>()
-            logsData.forEach(log => {
-              const loggedAt = new Date(log.logged_at)
-              if (loggedAt < start) {
-                if (!prevLogsMap.has(log.session_day)) prevLogsMap.set(log.session_day, new Map())
-                const dayMap = prevLogsMap.get(log.session_day)!
-                if (!dayMap.has(log.exercise_name)) dayMap.set(log.exercise_name, log.sets_data)
-              }
-            })
-            setPrevLogs(prevLogsMap)
+        // ── Path 1: onboarding generation in progress ──────────────────────────
+        if (isGeneratingFlag && rawInputs) {
+          const parsedInputs = JSON.parse(rawInputs) as GenerateRequest
+          setInputs(parsedInputs)
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            setUserId(user.id)
+            setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
           }
-
-          setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(dbDays)))
-          setIsAccepted(true)
+          setIsGenerating(true)
           return
         }
-      }
 
-      // ── Path 4: sessionStorage plan with plan-id (previously accepted) ─────
-      if (rawPlan) {
-        const sessionPlan = JSON.parse(rawPlan) as PlanResponse
-        setPlan(sessionPlan)
-        if (rawInputs) setInputs(JSON.parse(rawInputs))
-        if (storedPlanId) setPlanId(storedPlanId)
-        setIsAccepted(storedAccepted === '1')
-        setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
-        return
-      }
+        // ── Path 2: fresh unaccepted plan in sessionStorage (from account or ──
+        // ── onboarding after generation finished) — show it before Supabase  ──
+        if (rawPlan && !storedPlanId && !storedAccepted) {
+          const sessionPlan = JSON.parse(rawPlan) as PlanResponse
+          setPlan(sessionPlan)
+          if (rawInputs) setInputs(JSON.parse(rawInputs))
+          setIsAccepted(false)
+          setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            setUserId(user.id)
+            setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
+          }
+          return
+        }
 
-      router.replace('/')
+        // ── Path 3: load from Supabase (returning user) ───────────────────────
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setUserId(user.id)
+          setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
+
+          const { data: planRow } = await supabase
+            .from('plans')
+            .select('id, plan, inputs, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          if (planRow) {
+            const { data: logsData } = await supabase
+              .from('exercise_logs')
+              .select('session_day, exercise_name, sets_data, logged_at')
+              .eq('plan_id', planRow.id)
+              .order('logged_at', { ascending: false })
+
+            const logsMap = new Map<string, Map<string, SetLog[]>>()
+            const prevLogsMap = new Map<string, Map<string, SetLog[]>>()
+
+            if (logsData) {
+              const { start, end } = getCurrentWeekRange()
+              ;[...logsData].reverse().forEach(log => {
+                const loggedAt = new Date(log.logged_at)
+                if (loggedAt >= start && loggedAt <= end) {
+                  if (!logsMap.has(log.session_day)) logsMap.set(log.session_day, new Map())
+                  logsMap.get(log.session_day)!.set(log.exercise_name, log.sets_data)
+                }
+              })
+              logsData.forEach(log => {
+                const loggedAt = new Date(log.logged_at)
+                if (loggedAt < getCurrentWeekRange().start) {
+                  if (!prevLogsMap.has(log.session_day)) prevLogsMap.set(log.session_day, new Map())
+                  const dayMap = prevLogsMap.get(log.session_day)!
+                  if (!dayMap.has(log.exercise_name)) dayMap.set(log.exercise_name, log.sets_data)
+                }
+              })
+            }
+
+            // Set plan + logs together so ExerciseCards mount with correct initialLogs
+            setPlan(planRow.plan as PlanResponse)
+            setPlanId(planRow.id)
+            setInputs(planRow.inputs as GenerateRequest)
+            setPlanCreatedAt(new Date(planRow.created_at))
+            setAllLogs(logsMap)
+            setPrevLogs(prevLogsMap)
+            setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(logsMap.keys())))
+            setIsAccepted(true)
+            return
+          }
+        }
+
+        // ── Path 4: sessionStorage plan with plan-id (previously accepted) ─────
+        if (rawPlan) {
+          const sessionPlan = JSON.parse(rawPlan) as PlanResponse
+          setPlan(sessionPlan)
+          if (rawInputs) setInputs(JSON.parse(rawInputs))
+          if (storedPlanId) setPlanId(storedPlanId)
+          setIsAccepted(storedAccepted === '1')
+          setActiveDay(getInitialActiveDay(sessionPlan.plan.sessions))
+          return
+        }
+
+        router.replace('/')
+      } finally {
+        setIsLoadingData(false)
+      }
     }
 
     loadData()
@@ -1390,32 +1471,16 @@ export default function PlanPage() {
     })
   }
 
-  const finishDay = (dayName: string) => {
-    setFinishedDays(prev => {
-      const next = new Set(prev)
-      next.add(dayName)
-      const allDays = [...next]
-      localStorage.setItem(`finished-days-${planId ?? 'local'}`, JSON.stringify(allDays))
-      if (planId) {
-        const sb = createSupabaseBrowser()
-        sb.from('plans').update({ finished_days: allDays }).eq('id', planId).then(() => {})
-      }
-      return next
-    })
-  }
-
   const handleDiscardNewPlan = () => {
     sessionStorage.removeItem('workout-plan')
     sessionStorage.removeItem('workout-inputs')
     sessionStorage.removeItem('plan-generating')
-    localStorage.removeItem(`finished-days-${planId ?? 'local'}`)
-    localStorage.removeItem('finished-days')
     setPlan(null)
     setPlanId(null)
     setIsAccepted(false)
     setAllLogs(new Map())
     setPrevLogs(new Map())
-    setFinishedDays(new Set())
+    setIsLoadingData(true)
     setLoadKey(k => k + 1)
   }
 
@@ -1438,6 +1503,29 @@ export default function PlanPage() {
 
   const handleSetLogged = (restSeconds: number) => {
     setRestTimer({ remaining: restSeconds, total: restSeconds, minimized: false })
+  }
+
+  const handleFinishWeek = async () => {
+    if (!plan || !inputs) return
+    setIsFinishingWeek(true)
+    try {
+      const analysisRes = await fetch('/api/analyse-progressions', { method: 'POST' })
+      if (!analysisRes.ok) throw new Error('Analysis failed')
+      const analysis = await analysisRes.json()
+
+      const nextRes = await fetch('/api/plan-next-week', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPlan: plan.plan, inputs, analysis }),
+      })
+      if (!nextRes.ok) throw new Error('Plan generation failed')
+      const result = await nextRes.json()
+      setWeekFinishResult(result)
+    } catch (err) {
+      console.error('Finish week error:', err)
+    } finally {
+      setIsFinishingWeek(false)
+    }
   }
 
   if (isGenerating) {
@@ -1491,6 +1579,17 @@ export default function PlanPage() {
     )
   }
 
+  if (!isGenerating && isLoadingData) {
+    return (
+      <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-5">
+        <svg className="animate-spin w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </main>
+    )
+  }
+
   if (!plan) return null
 
   const { level, goal, days_per_week, sessions } = plan.plan
@@ -1501,10 +1600,6 @@ export default function PlanPage() {
   const logsForActiveDay = allLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
   const prevLogsForActiveDay = prevLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
 
-  const setsLoggedToday = Array.from(logsForActiveDay.values()).reduce((sum, logs) => sum + logs.length, 0)
-  const exercisesLoggedToday = logsForActiveDay.size
-
-  const sessionsThisWeek = allLogs.size
   const weekNumber = planCreatedAt ? getWeekNumber(planCreatedAt) : 1
 
   const firstName = displayName ? displayName.split('@')[0].split(' ')[0] : null
@@ -1513,7 +1608,7 @@ export default function PlanPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-36' : isAccepted && !finishedDays.has(activeSession.day) ? 'pb-28' : ''}`}>
+      <div className={`max-w-2xl mx-auto px-5 sm:px-8 py-8 ${!isAccepted ? 'pb-36' : isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 ? 'pb-28' : ''}`}>
 
         {/* Header */}
         {!isAccepted ? (
@@ -1565,7 +1660,7 @@ export default function PlanPage() {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
                   const isToday = todaySessionIdx === i
-                  const isDone = finishedDays.has(session.day)
+                  const isDone = !isRest && allLogs.has(session.day)
                   const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
                   return (
                     <button
@@ -1702,15 +1797,24 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Sticky bottom bar — finish workout / finish stretching */}
-      {isAccepted && !finishedDays.has(activeSession.day) && (
+      {/* Sticky bottom bar — finish week (Sunday only) */}
+      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button
-              onClick={() => isRestDay ? finishDay(activeSession.day) : setShowFinish(true)}
-              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={handleFinishWeek}
+              disabled={isFinishingWeek}
+              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
             >
-              {isRestDay ? 'Finish stretching session' : 'Finish workout'}
+              {isFinishingWeek ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Analysing your week…
+                </>
+              ) : 'Finish week →'}
             </Button>
           </div>
         </div>
@@ -1734,13 +1838,16 @@ export default function PlanPage() {
         />
       )}
 
-      {/* Finish workout overlay */}
-      {showFinish && (
-        <FinishWorkoutOverlay
-          displayName={displayName}
-          setsLogged={setsLoggedToday}
-          exercisesLogged={exercisesLoggedToday}
-          onClose={() => { finishDay(activeSession.day); setShowFinish(false) }}
+      {/* Finish week overlay */}
+      {weekFinishResult && (
+        <FinishWeekOverlay
+          result={weekFinishResult}
+          onClose={() => {
+            if (weekFinishResult.action === 'new_plan') {
+              router.replace('/plan')
+            }
+            setWeekFinishResult(null)
+          }}
         />
       )}
     </main>
