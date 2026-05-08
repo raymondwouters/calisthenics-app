@@ -125,10 +125,14 @@ function getTodayDayName(): string {
   return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()]
 }
 
-function getInitialActiveDay(sessions: Session[]): number {
+function getInitialActiveDay(sessions: Session[], finishedDays?: Set<string>): number {
   const today = getTodayDayName()
   const todayIdx = sessions.findIndex(s => s.day === today)
   if (todayIdx !== -1) return todayIdx
+  if (finishedDays && finishedDays.size > 0) {
+    const firstUnfinished = sessions.findIndex(s => !finishedDays.has(s.day))
+    if (firstUnfinished !== -1) return firstUnfinished
+  }
   return 0
 }
 
@@ -1116,8 +1120,8 @@ export default function PlanPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [activeDay, setActiveDay] = useState(0)
-  const [allLogs, setAllLogs] = useState<Map<string, SetLog[]>>(new Map())
-  const [prevLogs, setPrevLogs] = useState<Map<string, SetLog[]>>(new Map())
+  const [allLogs, setAllLogs] = useState<Map<string, Map<string, SetLog[]>>>(new Map())
+  const [prevLogs, setPrevLogs] = useState<Map<string, Map<string, SetLog[]>>>(new Map())
   const [planCreatedAt, setPlanCreatedAt] = useState<Date | null>(null)
   const [isAccepted, setIsAccepted] = useState(false)
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean } | null>(null)
@@ -1290,27 +1294,29 @@ export default function PlanPage() {
 
           if (logsData) {
             const { start, end } = getCurrentWeekRange()
-            const logsMap = new Map<string, SetLog[]>()
+            const logsMap = new Map<string, Map<string, SetLog[]>>()
             ;[...logsData].reverse().forEach(log => {
               const loggedAt = new Date(log.logged_at)
               if (loggedAt >= start && loggedAt <= end) {
-                logsMap.set(`${log.session_day}:${log.exercise_name}`, log.sets_data)
+                if (!logsMap.has(log.session_day)) logsMap.set(log.session_day, new Map())
+                logsMap.get(log.session_day)!.set(log.exercise_name, log.sets_data)
               }
             })
             setAllLogs(logsMap)
 
-            const prevLogsMap = new Map<string, SetLog[]>()
+            const prevLogsMap = new Map<string, Map<string, SetLog[]>>()
             logsData.forEach(log => {
               const loggedAt = new Date(log.logged_at)
               if (loggedAt < start) {
-                const key = `${log.session_day}:${log.exercise_name}`
-                if (!prevLogsMap.has(key)) prevLogsMap.set(key, log.sets_data)
+                if (!prevLogsMap.has(log.session_day)) prevLogsMap.set(log.session_day, new Map())
+                const dayMap = prevLogsMap.get(log.session_day)!
+                if (!dayMap.has(log.exercise_name)) dayMap.set(log.exercise_name, log.sets_data)
               }
             })
             setPrevLogs(prevLogsMap)
           }
 
-          setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions))
+          setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(dbDays)))
           setIsAccepted(true)
           return
         }
@@ -1369,10 +1375,16 @@ export default function PlanPage() {
   const updateLogs = (sessionDay: string, exerciseName: string, logs: SetLog[]) => {
     setAllLogs(prev => {
       const next = new Map(prev)
+      const dayLogs = new Map(next.get(sessionDay) ?? [])
       if (logs.length === 0) {
-        next.delete(`${sessionDay}:${exerciseName}`)
+        dayLogs.delete(exerciseName)
       } else {
-        next.set(`${sessionDay}:${exerciseName}`, logs)
+        dayLogs.set(exerciseName, logs)
+      }
+      if (dayLogs.size === 0) {
+        next.delete(sessionDay)
+      } else {
+        next.set(sessionDay, dayLogs)
       }
       return next
     })
@@ -1486,22 +1498,13 @@ export default function PlanPage() {
   const activeSession: Session = sessions[activeDay] ?? sessions[0]
   const isRestDay = activeSession.type === 'rest'
 
-  const logsForActiveDay = new Map<string, SetLog[]>()
-  allLogs.forEach((logs, key) => {
-    const [day, exerciseName] = key.split(':')
-    if (day === activeSession.day) logsForActiveDay.set(exerciseName, logs)
-  })
-
-  const prevLogsForActiveDay = new Map<string, SetLog[]>()
-  prevLogs.forEach((logs, key) => {
-    const [day, exerciseName] = key.split(':')
-    if (day === activeSession.day) prevLogsForActiveDay.set(exerciseName, logs)
-  })
+  const logsForActiveDay = allLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
+  const prevLogsForActiveDay = prevLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
 
   const setsLoggedToday = Array.from(logsForActiveDay.values()).reduce((sum, logs) => sum + logs.length, 0)
   const exercisesLoggedToday = logsForActiveDay.size
 
-  const sessionsThisWeek = new Set(Array.from(allLogs.keys()).map(k => k.split(':')[0])).size
+  const sessionsThisWeek = allLogs.size
   const weekNumber = planCreatedAt ? getWeekNumber(planCreatedAt) : 1
 
   const firstName = displayName ? displayName.split('@')[0].split(' ')[0] : null
