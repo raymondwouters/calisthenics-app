@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSkillPrompt } from '@/lib/skill'
 import { createSupabaseServer } from '@/lib/supabase-server'
-import { saveUserPlan } from '@/lib/plan-utils'
+import { saveUserPlan, saveWeeklyFeedback } from '@/lib/plan-utils'
 import { NextWeekPlanRequest, NextWeekPlanResponse } from '@/lib/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -93,6 +93,16 @@ The plan inside must follow this exact structure:
       response.plan = parsed.plan.plan ?? parsed.plan
       response.planId = planId ?? undefined
     }
+
+    await saveWeeklyFeedback({
+      userId: user.id,
+      analysis,
+      action: response.action,
+      reason: response.reason,
+      weeks_to_continue: response.weeks_to_continue,
+      changes: response.changes,
+      planId: response.planId,
+    })
 
     return NextResponse.json(response)
   } catch (err) {

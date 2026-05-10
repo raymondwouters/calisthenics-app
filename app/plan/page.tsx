@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse } from '@/lib/types'
+import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -1130,40 +1130,153 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
   )
 }
 
-// ─── FinishWeekOverlay ────────────────────────────────────────────────────────
+// ─── FinishWeekConfirmSheet ───────────────────────────────────────────────────
 
-interface FinishWeekOverlayProps {
-  result: NextWeekPlanResponse
-  onClose: () => void
+interface FinishWeekConfirmSheetProps {
+  onConfirm: () => void
+  onDismiss: () => void
 }
 
-function FinishWeekOverlay({ result, onClose }: FinishWeekOverlayProps) {
-  const isContinue = result.action === 'continue'
-
+function FinishWeekConfirmSheet({ onConfirm, onDismiss }: FinishWeekConfirmSheetProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-2xl bg-card border-t border-border rounded-t-3xl px-6 pt-6 pb-12 flex flex-col gap-5">
         <div className="w-10 h-1 bg-border rounded-full mb-1 mx-auto" />
 
         <div>
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Week afgerond</p>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Finish your week</p>
+          <h2 className="text-2xl font-black text-foreground leading-tight">Ready to wrap up?</h2>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            We&apos;ll look at everything you trained this week, spot where you&apos;re making progress and where to ease off, and set up your Monday automatically.
+          </p>
+          <p className="text-muted-foreground mt-2 text-sm">Your new schedule will be ready to start on Monday.</p>
+        </div>
+
+        <div className="flex flex-col gap-3 mt-2">
+          <Button
+            onClick={onConfirm}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12"
+          >
+            Analyse my week →
+          </Button>
+          <button
+            onClick={onDismiss}
+            className="w-full text-sm text-muted-foreground py-2"
+          >
+            Not yet
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── FinishWeekLoadingOverlay ─────────────────────────────────────────────────
+
+interface FinishWeekLoadingOverlayProps {
+  msgIdx: number
+}
+
+function FinishWeekLoadingOverlay({ msgIdx }: FinishWeekLoadingOverlayProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-5">
+      <div className="text-center max-w-xs">
+        <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-8">Analysing</p>
+        <div className="flex justify-center mb-6">
+          <svg className="animate-spin w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold mb-3">Looking at your week</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed min-h-[2.5rem] transition-all">
+          {FINISHING_MESSAGES[msgIdx]}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── FinishWeekOverlay ────────────────────────────────────────────────────────
+
+interface FinishWeekOverlayProps {
+  result: NextWeekPlanResponse
+  analysis: ProgressionAnalysis | null
+  onClose: () => void
+  onViewProgressions: () => void
+}
+
+function FinishWeekOverlay({ result, analysis, onClose, onViewProgressions }: FinishWeekOverlayProps) {
+  const isContinue = result.action === 'continue'
+  const needsWork = [
+    ...(analysis?.needs_regression ?? []),
+    ...(analysis?.plateaued.map(p => p.exercise) ?? []),
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-2xl bg-card border-t border-border rounded-t-3xl px-6 pt-6 pb-12 flex flex-col gap-5">
+        <div className="w-10 h-1 bg-border rounded-full mb-1 mx-auto" />
+
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Week done</p>
           <h2 className="text-2xl font-black text-foreground leading-tight">
-            {isContinue ? 'Goed bezig — door met dit schema.' : 'Nieuw schema klaar.'}
+            {isContinue ? 'Keep going — same plan.' : 'New plan ready.'}
           </h2>
           <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{result.reason}</p>
         </div>
 
+        {analysis && analysis.ready_to_progress.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Progressing well</p>
+            <div className="flex flex-wrap gap-2">
+              {analysis.ready_to_progress.map((ex, i) => (
+                <span key={i} className="bg-emerald-500/10 text-emerald-600 text-xs font-medium px-3 py-1 rounded-full">
+                  {ex}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {analysis && needsWork.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Need more time</p>
+            <div className="flex flex-wrap gap-2">
+              {needsWork.map((ex, i) => (
+                <span key={i} className="bg-secondary text-muted-foreground text-xs font-medium px-3 py-1 rounded-full">
+                  {ex}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {analysis && analysis.insights.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Key takeaways</p>
+            <ul className="flex flex-col gap-1">
+              {analysis.insights.map((insight, i) => (
+                <li key={i} className="text-sm text-muted-foreground leading-relaxed flex gap-2">
+                  <span className="text-primary mt-0.5">·</span>
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {isContinue && result.weeks_to_continue && (
           <div className="bg-secondary rounded-xl px-4 py-3">
             <p className="text-sm text-foreground">
-              Nog <span className="font-bold">{result.weeks_to_continue}</span> week{result.weeks_to_continue !== 1 ? 'en' : ''} op dit schema.
+              <span className="font-bold">{result.weeks_to_continue}</span> more week{result.weeks_to_continue !== 1 ? 's' : ''} on this plan before the next update.
             </p>
           </div>
         )}
 
         {!isContinue && result.changes && result.changes.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Aanpassingen</p>
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">What changed</p>
             {result.changes.map((c, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
                 <span className="text-foreground font-medium">{c.exercise}</span>
@@ -1175,12 +1288,20 @@ function FinishWeekOverlay({ result, onClose }: FinishWeekOverlayProps) {
           </div>
         )}
 
-        <Button
-          onClick={onClose}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12 mt-2"
-        >
-          {isContinue ? 'Sluiten' : 'Nieuw schema laden →'}
-        </Button>
+        <div className="flex flex-col gap-3 mt-2">
+          <Button
+            onClick={onClose}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12"
+          >
+            {isContinue ? 'Got it — start Monday' : 'Load next week →'}
+          </Button>
+          <button
+            onClick={onViewProgressions}
+            className="w-full text-sm text-muted-foreground py-2 underline underline-offset-2"
+          >
+            See my progressions
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -1193,6 +1314,14 @@ const GENERATING_MESSAGES = [
   'Selecting the right progressions…',
   'Structuring your weekly schedule…',
   'Balancing push, pull, and recovery…',
+  'Almost there…',
+]
+
+const FINISHING_MESSAGES = [
+  'Checking how your sessions looked this week…',
+  'Spotting which exercises you\'re ready to level up…',
+  'Finding where to take it a little slower…',
+  'Building your schedule for next week…',
   'Almost there…',
 ]
 
@@ -1215,7 +1344,10 @@ export default function PlanPage() {
   const [generateError, setGenerateError] = useState('')
   const [loadKey, setLoadKey] = useState(0)
   const [sessionUndo, setSessionUndo] = useState<{ sessionIndex: number; session: Session } | null>(null)
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false)
   const [isFinishingWeek, setIsFinishingWeek] = useState(false)
+  const [finishingMsgIdx, setFinishingMsgIdx] = useState(0)
+  const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
   const [weekFinishResult, setWeekFinishResult] = useState<NextWeekPlanResponse | null>(null)
 
   const planRef = useRef(plan)
@@ -1271,6 +1403,15 @@ export default function PlanPage() {
     }, 3000)
     return () => clearInterval(t)
   }, [isGenerating])
+
+  // Rotate finishing message every 3s while analysing
+  useEffect(() => {
+    if (!isFinishingWeek) return
+    const t = setInterval(() => {
+      setFinishingMsgIdx(i => (i + 1) % FINISHING_MESSAGES.length)
+    }, 3000)
+    return () => clearInterval(t)
+  }, [isFinishingWeek])
 
   // Kick off generation when isGenerating becomes true and inputs are available
   useEffect(() => {
@@ -1505,13 +1646,16 @@ export default function PlanPage() {
     setRestTimer({ remaining: restSeconds, total: restSeconds, minimized: false })
   }
 
-  const handleFinishWeek = async () => {
+  const handleConfirmFinishWeek = async () => {
     if (!plan || !inputs) return
+    setShowFinishConfirm(false)
     setIsFinishingWeek(true)
+    setFinishingMsgIdx(0)
     try {
       const analysisRes = await fetch('/api/analyse-progressions', { method: 'POST' })
       if (!analysisRes.ok) throw new Error('Analysis failed')
-      const analysis = await analysisRes.json()
+      const analysis: ProgressionAnalysis = await analysisRes.json()
+      setWeekFinishAnalysis(analysis)
 
       const nextRes = await fetch('/api/plan-next-week', {
         method: 'POST',
@@ -1519,13 +1663,17 @@ export default function PlanPage() {
         body: JSON.stringify({ currentPlan: plan.plan, inputs, analysis }),
       })
       if (!nextRes.ok) throw new Error('Plan generation failed')
-      const result = await nextRes.json()
+      const result: NextWeekPlanResponse = await nextRes.json()
       setWeekFinishResult(result)
     } catch (err) {
       console.error('Finish week error:', err)
     } finally {
       setIsFinishingWeek(false)
     }
+  }
+
+  if (isFinishingWeek) {
+    return <FinishWeekLoadingOverlay msgIdx={finishingMsgIdx} />
   }
 
   if (isGenerating) {
@@ -1802,19 +1950,10 @@ export default function PlanPage() {
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button
-              onClick={handleFinishWeek}
-              disabled={isFinishingWeek}
-              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
+              onClick={() => setShowFinishConfirm(true)}
+              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {isFinishingWeek ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Analysing your week…
-                </>
-              ) : 'Finish week →'}
+              Finish week →
             </Button>
           </div>
         </div>
@@ -1838,15 +1977,27 @@ export default function PlanPage() {
         />
       )}
 
-      {/* Finish week overlay */}
+      {/* Finish week — confirmation sheet */}
+      {showFinishConfirm && (
+        <FinishWeekConfirmSheet
+          onConfirm={handleConfirmFinishWeek}
+          onDismiss={() => setShowFinishConfirm(false)}
+        />
+      )}
+
+      {/* Finish week — results overlay */}
       {weekFinishResult && (
         <FinishWeekOverlay
           result={weekFinishResult}
+          analysis={weekFinishAnalysis}
           onClose={() => {
             if (weekFinishResult.action === 'new_plan') {
               router.replace('/plan')
             }
             setWeekFinishResult(null)
+          }}
+          onViewProgressions={() => {
+            router.push('/progression')
           }}
         />
       )}

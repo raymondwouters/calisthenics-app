@@ -24,7 +24,24 @@ export async function GET(req: NextRequest) {
   const userIds = [...new Set((activeUsers ?? []).map(r => r.user_id))] as string[]
   const results: Record<string, string> = {}
 
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)) // Monday
+  weekStart.setHours(0, 0, 0, 0)
+
   for (const userId of userIds) {
+    const { data: existingFeedback } = await supabase
+      .from('weekly_feedback')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', weekStart.toISOString())
+      .limit(1)
+      .maybeSingle()
+
+    if (existingFeedback) {
+      results[userId] = 'skipped_manual'
+      continue
+    }
+
     try {
       const analysis = await analyseProgressions(userId)
       const result = await generateNextWeekPlan(userId, analysis)
