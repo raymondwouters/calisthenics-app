@@ -75,11 +75,13 @@ The plan inside must follow this exact structure:
       return NextResponse.json({ error: 'Failed to parse response' }, { status: 500 })
     }
 
-    const sanitized = jsonMatch[0].replace(/("(?:[^"\\]|\\.)*")/g, m =>
-      m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
-    )
+    const cleaned = jsonMatch[0]
+      .replace(/\r\n/g, ' ')
+      .replace(/\n/g, ' ')
+      .replace(/\r/g, ' ')
+      .replace(/\t/g, ' ')
 
-    const parsed = JSON.parse(sanitized)
+    const parsed = JSON.parse(cleaned)
 
     const response: NextWeekPlanResponse = {
       action: parsed.action,

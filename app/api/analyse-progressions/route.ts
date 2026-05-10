@@ -82,12 +82,15 @@ Return ONLY a single-line compact JSON object with no explanation, no markdown, 
       return NextResponse.json({ error: 'Failed to parse analysis' }, { status: 500 })
     }
 
-    // Sanitize: replace literal newlines inside JSON strings
-    const sanitized = jsonMatch[0].replace(/("(?:[^"\\]|\\.)*")/g, m =>
-      m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
-    )
+    // The prompt requests single-line JSON, so any literal newlines/tabs are
+    // inside string values — safe to replace globally before parsing.
+    const cleaned = jsonMatch[0]
+      .replace(/\r\n/g, ' ')
+      .replace(/\n/g, ' ')
+      .replace(/\r/g, ' ')
+      .replace(/\t/g, ' ')
 
-    const analysis: ProgressionAnalysis = JSON.parse(sanitized)
+    const analysis: ProgressionAnalysis = JSON.parse(cleaned)
     return NextResponse.json(analysis)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
