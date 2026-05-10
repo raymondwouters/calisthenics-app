@@ -72,7 +72,7 @@ Return ONLY a single-line compact JSON object with no explanation, no markdown, 
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1200,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: userMessage }],
     })
 
@@ -82,15 +82,7 @@ Return ONLY a single-line compact JSON object with no explanation, no markdown, 
       return NextResponse.json({ error: 'Failed to parse analysis' }, { status: 500 })
     }
 
-    // The prompt requests single-line JSON, so any literal newlines/tabs are
-    // inside string values — safe to replace globally before parsing.
-    const cleaned = jsonMatch[0]
-      .replace(/\r\n/g, ' ')
-      .replace(/\n/g, ' ')
-      .replace(/\r/g, ' ')
-      .replace(/\t/g, ' ')
-
-    const analysis: ProgressionAnalysis = JSON.parse(cleaned)
+    const analysis: ProgressionAnalysis = JSON.parse(jsonMatch[0])
     return NextResponse.json(analysis)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
