@@ -150,6 +150,21 @@ function getWeekNumber(planCreatedAt: Date): number {
   return Math.floor((currentWeekStart.getTime() - planWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
 }
 
+function getPreviousWeekRange(): { start: Date; end: Date } {
+  const { start } = getCurrentWeekRange()
+  const prevMonday = new Date(start)
+  prevMonday.setDate(start.getDate() - 7)
+  const prevSunday = new Date(prevMonday)
+  prevSunday.setDate(prevMonday.getDate() + 6)
+  prevSunday.setHours(23, 59, 59, 999)
+  return { start: prevMonday, end: prevSunday }
+}
+
+function formatWeekLabel(start: Date, end: Date): string {
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`
+}
+
 function formatPrevLog(log: SetLog | null | undefined): string {
   if (!log) return '✓'
   if (log.duration_s !== undefined) return `${log.duration_s}s`
@@ -1239,6 +1254,7 @@ export default function PlanPage() {
   const [finishingMsgIdx, setFinishingMsgIdx] = useState(0)
   const [finishWeekError, setFinishWeekError] = useState('')
   const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
+  const [viewingPreviousWeek, setViewingPreviousWeek] = useState(false)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1647,7 +1663,8 @@ export default function PlanPage() {
   const activeSession: Session = sessions[activeDay] ?? sessions[0]
   const isRestDay = activeSession.type === 'rest'
 
-  const logsForActiveDay = allLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
+  const displayLogs = viewingPreviousWeek ? prevLogs : allLogs
+  const logsForActiveDay = displayLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
   const prevLogsForActiveDay = prevLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
 
   const weekNumber = planCreatedAt ? getWeekNumber(planCreatedAt) : 1
@@ -1703,14 +1720,45 @@ export default function PlanPage() {
 
         {/* Week tabs */}
         {(() => {
+          const prevRange = getPreviousWeekRange()
+          const currRange = getCurrentWeekRange()
           return (
             <>
+              <div className="flex items-center gap-2 mb-3 pl-1">
+                {viewingPreviousWeek ? (
+                  <>
+                    <button
+                      onClick={() => setViewingPreviousWeek(false)}
+                      className="text-muted-foreground/50 hover:text-muted-foreground text-base leading-none"
+                      aria-label="Back to current week"
+                    >
+                      ‹
+                    </button>
+                    <span className="text-[12px] text-muted-foreground/60">
+                      {formatWeekLabel(prevRange.start, prevRange.end)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setViewingPreviousWeek(true)}
+                      className="text-muted-foreground/30 hover:text-muted-foreground/60 text-base leading-none"
+                      aria-label="View previous week"
+                    >
+                      ‹
+                    </button>
+                    <span className="text-[12px] text-muted-foreground/60">
+                      Week {weekNumber} · {formatWeekLabel(currRange.start, currRange.end)}
+                    </span>
+                  </>
+                )}
+              </div>
               <div className="bg-card rounded-2xl p-1 flex gap-0.5 mb-1">
                 {sessions.map((session, i) => {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
-                  const isToday = todaySessionIdx === i
-                  const isDone = !isRest && allLogs.has(session.day)
+                  const isToday = !viewingPreviousWeek && todaySessionIdx === i
+                  const isDone = !isRest && displayLogs.has(session.day)
                   const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
                   return (
                     <button
@@ -1755,8 +1803,8 @@ export default function PlanPage() {
                   )
                 })}
               </div>
-              <p className="text-[11px] text-muted-foreground/50 mb-5 pl-1">
-                Week {weekNumber} · new week starts Sunday night
+              <p className="text-[11px] text-muted-foreground/40 mt-2 mb-5 pl-1">
+                On sunday your weekly schema will be updated.
               </p>
             </>
           )
@@ -1798,13 +1846,13 @@ export default function PlanPage() {
               onSetLogged={handleSetLogged}
               onAdjusted={schedulePlanSave}
               onUndone={cancelPlanSave}
-              isPreview={!isAccepted || isRestDay}
+              isPreview={!isAccepted || isRestDay || viewingPreviousWeek}
             />
           ))}
         </div>
 
         {/* Session undo notice — shown after progression until dismissed or day changes */}
-        {sessionUndo && sessionUndo.sessionIndex === activeDay && (
+        {sessionUndo && sessionUndo.sessionIndex === activeDay && !viewingPreviousWeek && (
           <div className="mt-6 flex items-center justify-between rounded-xl border border-border px-4 py-3">
             <p className="text-sm text-muted-foreground">Session updated with harder exercises.</p>
             <button
@@ -1819,8 +1867,8 @@ export default function PlanPage() {
           </div>
         )}
 
-        {/* Refine this day — only on accepted workout days */}
-        {inputs && isAccepted && !isRestDay && (
+        {/* Refine this day — only on accepted workout days, not when viewing previous week */}
+        {inputs && isAccepted && !isRestDay && !viewingPreviousWeek && (
           <RefineDayForm
             session={activeSession}
             inputs={inputs}
@@ -1848,7 +1896,7 @@ export default function PlanPage() {
       )}
 
       {/* Sticky bottom bar — finish week (Sunday only) */}
-      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && (
+      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && !viewingPreviousWeek && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button
