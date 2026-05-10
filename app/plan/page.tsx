@@ -140,6 +140,26 @@ function getInitialActiveDay(sessions: Session[], finishedDays?: Set<string>): n
   return 0
 }
 
+const SESSION_DAY_INDEX: Record<string, number> = {
+  Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+  Thursday: 4, Friday: 5, Saturday: 6,
+}
+
+// Returns the Monday of the calendar week a log actually belongs to,
+// using session_day (plan day) rather than the raw logged_at date.
+// Tolerates up to 3 days late (e.g., logging Sunday's session on Monday–Wednesday).
+function getLogWeekMonday(sessionDay: string, loggedAt: Date): Date {
+  const targetIdx = SESSION_DAY_INDEX[sessionDay]
+  if (targetIdx === undefined) return getCalendarMonday(loggedAt)
+  const logIdx = loggedAt.getDay()
+  let daysBack = (logIdx - targetIdx + 7) % 7
+  // More than 3 days back means the user likely logged it early for the upcoming session
+  if (daysBack > 3) daysBack = 0
+  const sessionDate = new Date(loggedAt)
+  sessionDate.setDate(loggedAt.getDate() - daysBack)
+  return getCalendarMonday(sessionDate)
+}
+
 function getCalendarMonday(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()
@@ -1247,6 +1267,7 @@ export default function PlanPage() {
   const [activeDay, setActiveDay] = useState(0)
   const [allLogs, setAllLogs] = useState<Map<string, Map<string, SetLog[]>>>(new Map())
   const [prevLogs, setPrevLogs] = useState<Map<string, Map<string, SetLog[]>>>(new Map())
+  const [prevPlan, setPrevPlan] = useState<PlanResponse | null>(null)
   const [planCreatedAt, setPlanCreatedAt] = useState<Date | null>(null)
   const [isAccepted, setIsAccepted] = useState(false)
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean } | null>(null)
@@ -1434,23 +1455,32 @@ export default function PlanPage() {
 
             if (logsData) {
               const registrationDate = new Date(firstPlanRow?.created_at ?? planRow.created_at)
-              const { start, end } = getUserWeekInfo(registrationDate)
+              const { start: currWeekMonday } = getUserWeekInfo(registrationDate)
+              const prevWeekMonday = new Date(currWeekMonday.getTime() - 7 * 24 * 60 * 60 * 1000)
+
               ;[...logsData].reverse().forEach(log => {
                 const loggedAt = new Date(log.logged_at)
-                if (loggedAt >= start && loggedAt <= end) {
+                const logMonday = getLogWeekMonday(log.session_day, loggedAt)
+                if (logMonday.getTime() === currWeekMonday.getTime()) {
                   if (!logsMap.has(log.session_day)) logsMap.set(log.session_day, new Map())
                   logsMap.get(log.session_day)!.set(log.exercise_name, log.sets_data)
-                }
-              })
-              logsData.forEach(log => {
-                const loggedAt = new Date(log.logged_at)
-                if (loggedAt < start) {
+                } else if (logMonday.getTime() === prevWeekMonday.getTime()) {
                   if (!prevLogsMap.has(log.session_day)) prevLogsMap.set(log.session_day, new Map())
                   const dayMap = prevLogsMap.get(log.session_day)!
                   if (!dayMap.has(log.exercise_name)) dayMap.set(log.exercise_name, log.sets_data)
                 }
               })
             }
+
+            // Load the plan that was active during the previous week (for viewing historical exercises)
+            const { data: prevPlanRow } = await supabase
+              .from('plans')
+              .select('id, plan')
+              .eq('user_id', user.id)
+              .neq('id', planRow.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
 
             // Set plan + logs together so ExerciseCards mount with correct initialLogs
             setPlan(planRow.plan as PlanResponse)
@@ -1459,6 +1489,7 @@ export default function PlanPage() {
             setPlanCreatedAt(new Date(firstPlanRow?.created_at ?? planRow.created_at))
             setAllLogs(logsMap)
             setPrevLogs(prevLogsMap)
+            if (prevPlanRow) setPrevPlan(prevPlanRow.plan as PlanResponse)
             setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(logsMap.keys())))
             setIsAccepted(true)
             return
@@ -1668,7 +1699,12 @@ export default function PlanPage() {
 
   const { level, goal, days_per_week, sessions } = plan.plan
   const equipment = inputs?.equipment ?? []
-  const activeSession: Session = sessions[activeDay] ?? sessions[0]
+
+  // When viewing a previous week, show that week's exercises (different plan version)
+  const prevSessions = prevPlan?.plan.sessions ?? sessions
+  const activeSession: Session = viewingPreviousWeek
+    ? (prevSessions.find(s => s.day === sessions[activeDay]?.day) ?? prevSessions[activeDay] ?? sessions[activeDay] ?? sessions[0])
+    : (sessions[activeDay] ?? sessions[0])
   const isRestDay = activeSession.type === 'rest'
 
   const displayLogs = viewingPreviousWeek ? prevLogs : allLogs
