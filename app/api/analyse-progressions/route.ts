@@ -67,7 +67,7 @@ Current plan exercises:
 ${planExercises}
 
 Return ONLY a single-line compact JSON object with no explanation, no markdown, and no newlines inside string values:
-{"summary":"...","ready_to_progress":[...],"needs_regression":[...],"plateaued":[{"exercise":"...","sessions_stable":0,"recommendation":"..."}],"insights":[...]}`
+{"ready_to_progress":[...],"needs_regression":[...],"plateaued":[{"exercise":"...","sessions_stable":0,"recommendation":"..."}],"insights":[...]}`
 
   try {
     const message = await client.messages.create({

@@ -57,7 +57,6 @@ export interface FeedbackPlanRequest {
 }
 
 export interface ProgressionAnalysis {
-  summary: string
   ready_to_progress: string[]
   needs_regression: string[]
   plateaued: Array<{

@@ -229,8 +229,6 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
 
       {/* Analysis */}
       <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
-        <p className="text-sm text-foreground leading-relaxed">{fb.analysis.summary}</p>
-
         {fb.analysis.ready_to_progress.length > 0 && (
           <div>
             <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>

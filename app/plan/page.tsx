@@ -391,6 +391,7 @@ interface ExerciseCardProps {
   sessionDay: string
   planId: string | null
   userId: string | null
+  weekNumber: number
   initialLogs: SetLog[]
   prevSetsData?: SetLog[]
   onReplace: (updated: Exercise) => void
@@ -409,6 +410,7 @@ function ExerciseCard({
   sessionDay,
   planId,
   userId,
+  weekNumber,
   initialLogs,
   prevSetsData,
   onReplace,
@@ -481,6 +483,7 @@ function ExerciseCard({
               session_day: sessionDay,
               exercise_name: exercise.name,
               sets_data: logs,
+              week_number: weekNumber,
             }).then(({ error: e }) => {
               if (e) console.error('Log save error:', e.message)
             })
@@ -703,6 +706,31 @@ function ExerciseCard({
         <p className="text-xs text-muted-foreground leading-relaxed">{exercise.notes}</p>
       )}
 
+
+      {/* Read-only set display — shown in preview mode when logs exist */}
+      {isPreview && setLogs.some(l => l !== null) && (
+        <div className="grid gap-2 pt-1" style={{ gridTemplateColumns: `repeat(${exercise.sets}, 1fr)` }}>
+          {setLogs.map((log, i) => (
+            <div
+              key={i}
+              className={`rounded-xl border py-2 ${
+                log !== null
+                  ? 'bg-primary border-primary text-primary-foreground'
+                  : 'border-border bg-card text-muted-foreground'
+              }`}
+            >
+              {log !== null ? (
+                <div className="flex flex-col items-center leading-none gap-0.5">
+                  <span className="text-[10px] font-semibold uppercase opacity-70">S{i + 1}</span>
+                  <span className="text-sm font-bold">{setLogDisplay(log)}</span>
+                </div>
+              ) : (
+                <span className="text-sm font-semibold text-center block">Set {i + 1}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Rep logger — hidden in preview mode */}
       {!isPreview && (
@@ -958,52 +986,52 @@ function ExerciseCard({
         </div>
       )}
 
-      {/* Difficulty adjustment */}
-      <div className="mt-2 pt-3 border-t border-border/50">
-        <p className="text-xs text-muted-foreground mb-2.5">
-          {isPreview ? 'Not the right difficulty? Swap for an easier or harder variation.' : 'How did this feel?'}
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={() => adjust('regression')}
-            disabled={adjusting !== null}
-            className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
-          >
-            {adjusting === 'regression' ? (
-              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            ) : <span className="text-base leading-none">↓</span>}
-            {isPreview ? 'Easier' : 'Too hard'}
-          </button>
-          <button
-            onClick={() => adjust('progression')}
-            disabled={adjusting !== null}
-            className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
-          >
-            {adjusting === 'progression' ? (
-              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            ) : <span className="text-base leading-none">↑</span>}
-            {isPreview ? 'Harder' : 'Too easy'}
-          </button>
+      {/* Difficulty adjustment — hidden in preview/history mode */}
+      {!isPreview && (
+        <div className="mt-2 pt-3 border-t border-border/50">
+          <p className="text-xs text-muted-foreground mb-2.5">How did this feel?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => adjust('regression')}
+              disabled={adjusting !== null}
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
+            >
+              {adjusting === 'regression' ? (
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              ) : <span className="text-base leading-none">↓</span>}
+              Too hard
+            </button>
+            <button
+              onClick={() => adjust('progression')}
+              disabled={adjusting !== null}
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
+            >
+              {adjusting === 'progression' ? (
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              ) : <span className="text-base leading-none">↑</span>}
+              Too easy
+            </button>
+          </div>
+          {limitMessage && (
+            <p className="text-xs text-amber-400 mt-2 leading-relaxed">{limitMessage}</p>
+          )}
+          {previousExercise && (
+            <button
+              onClick={handleUndo}
+              className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>↩</span>
+              Undo — back to {previousExercise.name}{undoCountdown !== null ? ` (${undoCountdown}s)` : ''}
+            </button>
+          )}
         </div>
-        {limitMessage && (
-          <p className="text-xs text-amber-400 mt-2 leading-relaxed">{limitMessage}</p>
-        )}
-        {previousExercise && (
-          <button
-            onClick={handleUndo}
-            className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <span>↩</span>
-            Undo — back to {previousExercise.name}{undoCountdown !== null ? ` (${undoCountdown}s)` : ''}
-          </button>
-        )}
-      </div>
+      )}
     </div>
   )
 }
@@ -1018,6 +1046,7 @@ interface BlockSectionProps {
   sessionDay: string
   planId: string | null
   userId: string | null
+  weekNumber: number
   logsForDay: Map<string, SetLog[]>
   prevLogsForDay: Map<string, SetLog[]>
   onReplaceExercise: (exerciseIndex: number, updated: Exercise) => void
@@ -1036,6 +1065,7 @@ function BlockSection({
   sessionDay,
   planId,
   userId,
+  weekNumber,
   logsForDay,
   prevLogsForDay,
   onReplaceExercise,
@@ -1061,6 +1091,7 @@ function BlockSection({
             sessionDay={sessionDay}
             planId={planId}
             userId={userId}
+            weekNumber={weekNumber}
             initialLogs={logsForDay.get(ex.name) ?? []}
             prevSetsData={prevLogsForDay.get(ex.name)}
             onReplace={(updated) => onReplaceExercise(i, updated)}
@@ -1283,6 +1314,7 @@ export default function PlanPage() {
   const [finishWeekError, setFinishWeekError] = useState('')
   const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
   const [viewingPreviousWeek, setViewingPreviousWeek] = useState(false)
+  const [weekIsFinished, setWeekIsFinished] = useState(false)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1453,9 +1485,24 @@ export default function PlanPage() {
             const logsMap = new Map<string, Map<string, SetLog[]>>()
             const prevLogsMap = new Map<string, Map<string, SetLog[]>>()
 
+            const registrationDate = new Date(firstPlanRow?.created_at ?? planRow.created_at)
+            const { start: currWeekMonday } = getUserWeekInfo(registrationDate)
+
+            const nextWeekLoadedAt = localStorage.getItem('next-week-loaded-at')
+            const weekOverridden = nextWeekLoadedAt
+              ? new Date(nextWeekLoadedAt) >= currWeekMonday
+              : false
+
+            const { data: weekFeedback } = await supabase
+              .from('weekly_feedback')
+              .select('id')
+              .eq('user_id', user.id)
+              .gte('created_at', currWeekMonday.toISOString())
+              .limit(1)
+              .maybeSingle()
+            setWeekIsFinished(!weekOverridden && !!weekFeedback)
+
             if (logsData) {
-              const registrationDate = new Date(firstPlanRow?.created_at ?? planRow.created_at)
-              const { start: currWeekMonday } = getUserWeekInfo(registrationDate)
               const prevWeekMonday = new Date(currWeekMonday.getTime() - 7 * 24 * 60 * 60 * 1000)
 
               ;[...logsData].reverse().forEach(log => {
@@ -1486,7 +1533,7 @@ export default function PlanPage() {
             setPlan(planRow.plan as PlanResponse)
             setPlanId(planRow.id)
             setInputs(planRow.inputs as GenerateRequest)
-            setPlanCreatedAt(new Date(firstPlanRow?.created_at ?? planRow.created_at))
+            setPlanCreatedAt(registrationDate)
             setAllLogs(logsMap)
             setPrevLogs(prevLogsMap)
             if (prevPlanRow) setPrevPlan(prevPlanRow.plan as PlanResponse)
@@ -1892,6 +1939,7 @@ export default function PlanPage() {
               sessionDay={activeSession.day}
               planId={planId}
               userId={userId}
+              weekNumber={weekNumber}
               logsForDay={logsForActiveDay}
               prevLogsForDay={prevLogsForActiveDay}
               onReplaceExercise={(ei, updated) =>
@@ -1903,13 +1951,13 @@ export default function PlanPage() {
               onSetLogged={handleSetLogged}
               onAdjusted={schedulePlanSave}
               onUndone={cancelPlanSave}
-              isPreview={!isAccepted || isRestDay || viewingPreviousWeek}
+              isPreview={!isAccepted || isRestDay || viewingPreviousWeek || weekIsFinished}
             />
           ))}
         </div>
 
         {/* Session undo notice — shown after progression until dismissed or day changes */}
-        {sessionUndo && sessionUndo.sessionIndex === activeDay && !viewingPreviousWeek && (
+        {sessionUndo && sessionUndo.sessionIndex === activeDay && !viewingPreviousWeek && !weekIsFinished && (
           <div className="mt-6 flex items-center justify-between rounded-xl border border-border px-4 py-3">
             <p className="text-sm text-muted-foreground">Session updated with harder exercises.</p>
             <button
@@ -1925,7 +1973,7 @@ export default function PlanPage() {
         )}
 
         {/* Refine this day — only on accepted workout days, not when viewing previous week */}
-        {inputs && isAccepted && !isRestDay && !viewingPreviousWeek && (
+        {inputs && isAccepted && !isRestDay && !viewingPreviousWeek && !weekIsFinished && (
           <RefineDayForm
             session={activeSession}
             inputs={inputs}
@@ -1953,7 +2001,7 @@ export default function PlanPage() {
       )}
 
       {/* Sticky bottom bar — finish week (Sunday only) */}
-      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && !viewingPreviousWeek && (
+      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && !viewingPreviousWeek && !weekIsFinished && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button

@@ -129,7 +129,6 @@ Current plan:
 ${JSON.stringify(currentPlan, null, 2)}
 
 Progression analysis:
-- Summary: ${analysis.summary}
 - Ready to progress: ${analysis.ready_to_progress.join(', ') || 'none'}
 - Needs regression: ${analysis.needs_regression.join(', ') || 'none'}
 - Plateaued: ${analysis.plateaued.map(p => `${p.exercise} (${p.sessions_stable} sessions stable — ${p.recommendation})`).join(', ') || 'none'}

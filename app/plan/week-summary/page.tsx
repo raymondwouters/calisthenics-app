@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { NextWeekPlanResponse, ProgressionAnalysis } from '@/lib/types'
@@ -13,16 +13,30 @@ interface WeekSummaryData {
 export default function WeekSummaryPage() {
   const router = useRouter()
   const [data, setData] = useState<WeekSummaryData | null>(null)
+  const dataRef = useRef<WeekSummaryData | null>(null)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('week-summary')
     if (!raw) { router.replace('/plan'); return }
     try {
-      setData(JSON.parse(raw))
+      const parsed = JSON.parse(raw)
+      dataRef.current = parsed
+      setData(parsed)
     } catch {
       router.replace('/plan')
     }
   }, [router])
+
+  // On unmount: clean up sessionStorage and stamp localStorage so the plan
+  // page treats the new week as active (overrides weekIsFinished check)
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('week-summary')
+      if (dataRef.current) {
+        localStorage.setItem('next-week-loaded-at', new Date().toISOString())
+      }
+    }
+  }, [])
 
   if (!data) return null
 
@@ -34,13 +48,7 @@ export default function WeekSummaryPage() {
   ]
 
   const handleLoadNextWeek = () => {
-    sessionStorage.removeItem('week-summary')
     router.replace('/plan')
-  }
-
-  const handleViewProgressions = () => {
-    sessionStorage.removeItem('week-summary')
-    router.push('/progression')
   }
 
   return (
@@ -53,24 +61,20 @@ export default function WeekSummaryPage() {
           <h1 className="text-3xl font-black text-foreground leading-tight">
             {isContinue ? 'Same schedule next week.' : 'New plan ready.'}
           </h1>
-          <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-            {isContinue
-              ? `Your training looked good — next week follows the same schedule. ${result.reason}`
-              : result.reason}
-          </p>
         </div>
 
         {/* Progressing well */}
         {analysis.ready_to_progress.length > 0 && (
           <section className="mb-8">
             <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-3">Progressing well</p>
-            <div className="flex flex-wrap gap-2">
+            <ul className="flex flex-col gap-3">
               {analysis.ready_to_progress.map((ex, i) => (
-                <span key={i} className="bg-emerald-500/10 text-emerald-600 text-sm font-medium px-3 py-1.5 rounded-full">
-                  {ex}
-                </span>
+                <li key={i} className="text-sm text-muted-foreground leading-relaxed flex gap-3">
+                  <span className="text-primary mt-0.5 shrink-0">·</span>
+                  <span>{ex}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         )}
 
@@ -78,13 +82,14 @@ export default function WeekSummaryPage() {
         {needsWork.length > 0 && (
           <section className="mb-8">
             <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-3">Need more time</p>
-            <div className="flex flex-wrap gap-2">
+            <ul className="flex flex-col gap-3">
               {needsWork.map((ex, i) => (
-                <span key={i} className="bg-secondary text-muted-foreground text-sm font-medium px-3 py-1.5 rounded-full">
-                  {ex}
-                </span>
+                <li key={i} className="text-sm text-muted-foreground leading-relaxed flex gap-3">
+                  <span className="text-primary mt-0.5 shrink-0">·</span>
+                  <span>{ex}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         )}
 
@@ -139,19 +144,13 @@ export default function WeekSummaryPage() {
 
       {/* Sticky CTA bar */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex flex-col gap-3">
+        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
           <Button
             onClick={handleLoadNextWeek}
             className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isContinue ? 'Got it — start Monday' : 'Load next week →'}
           </Button>
-          <button
-            onClick={handleViewProgressions}
-            className="w-full text-sm text-muted-foreground py-1 underline underline-offset-2"
-          >
-            See my progressions
-          </button>
         </div>
       </div>
     </main>
