@@ -1221,9 +1221,13 @@ function FinishWeekOverlay({ result, analysis, onClose, onViewProgressions }: Fi
         <div>
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Week done</p>
           <h2 className="text-2xl font-black text-foreground leading-tight">
-            {isContinue ? 'Keep going — same plan.' : 'New plan ready.'}
+            {isContinue ? 'Same schedule next week.' : 'New plan ready.'}
           </h2>
-          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{result.reason}</p>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            {isContinue
+              ? `Your training looked good — next week follows the same schedule. ${result.reason}`
+              : result.reason}
+          </p>
         </div>
 
         {analysis && analysis.ready_to_progress.length > 0 && (
@@ -1266,10 +1270,12 @@ function FinishWeekOverlay({ result, analysis, onClose, onViewProgressions }: Fi
           </div>
         )}
 
-        {isContinue && result.weeks_to_continue && (
+        {isContinue && (
           <div className="bg-secondary rounded-xl px-4 py-3">
             <p className="text-sm text-foreground">
-              <span className="font-bold">{result.weeks_to_continue}</span> more week{result.weeks_to_continue !== 1 ? 's' : ''} on this plan before the next update.
+              {result.weeks_to_continue
+                ? <>Next week uses the same schedule. We&apos;ll check in again in <span className="font-bold">{result.weeks_to_continue}</span> week{result.weeks_to_continue !== 1 ? 's' : ''}.</>
+                : 'Next week uses the same schedule.'}
             </p>
           </div>
         )}
@@ -1347,6 +1353,7 @@ export default function PlanPage() {
   const [showFinishConfirm, setShowFinishConfirm] = useState(false)
   const [isFinishingWeek, setIsFinishingWeek] = useState(false)
   const [finishingMsgIdx, setFinishingMsgIdx] = useState(0)
+  const [finishWeekError, setFinishWeekError] = useState('')
   const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
   const [weekFinishResult, setWeekFinishResult] = useState<NextWeekPlanResponse | null>(null)
 
@@ -1649,6 +1656,7 @@ export default function PlanPage() {
   const handleConfirmFinishWeek = async () => {
     if (!plan || !inputs) return
     setShowFinishConfirm(false)
+    setFinishWeekError('')
     setIsFinishingWeek(true)
     setFinishingMsgIdx(0)
     try {
@@ -1667,13 +1675,10 @@ export default function PlanPage() {
       setWeekFinishResult(result)
     } catch (err) {
       console.error('Finish week error:', err)
+      setFinishWeekError('Something went wrong. Try again.')
     } finally {
       setIsFinishingWeek(false)
     }
-  }
-
-  if (isFinishingWeek) {
-    return <FinishWeekLoadingOverlay msgIdx={finishingMsgIdx} />
   }
 
   if (isGenerating) {
@@ -1983,6 +1988,37 @@ export default function PlanPage() {
           onConfirm={handleConfirmFinishWeek}
           onDismiss={() => setShowFinishConfirm(false)}
         />
+      )}
+
+      {/* Finish week — loading overlay */}
+      {isFinishingWeek && <FinishWeekLoadingOverlay msgIdx={finishingMsgIdx} />}
+
+      {/* Finish week — error overlay */}
+      {finishWeekError && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-card border-t border-border rounded-t-3xl px-6 pt-6 pb-12 flex flex-col gap-5">
+            <div className="w-10 h-1 bg-border rounded-full mb-1 mx-auto" />
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-destructive uppercase mb-1">Something went wrong</p>
+              <h2 className="text-2xl font-black text-foreground leading-tight">Couldn&apos;t analyse your week</h2>
+              <p className="text-muted-foreground mt-2 text-sm">It usually works on the next try.</p>
+            </div>
+            <div className="flex flex-col gap-3 mt-2">
+              <Button
+                onClick={() => { setFinishWeekError(''); handleConfirmFinishWeek() }}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12"
+              >
+                Try again
+              </Button>
+              <button
+                onClick={() => setFinishWeekError('')}
+                className="w-full text-sm text-muted-foreground py-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Finish week — results overlay */}
