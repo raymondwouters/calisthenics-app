@@ -250,94 +250,91 @@ export default function ProgressionPage() {
 
         {/* ─── Weekly Feedback Box ─── */}
         {weeklyFeedback && (
-          <div className="bg-secondary/50 rounded-2xl p-5 mb-8 flex flex-col gap-4">
+          <div className="mb-8 flex flex-col gap-4">
 
-            <p className="text-sm text-foreground leading-relaxed">{weeklyFeedback.analysis.summary}</p>
+            {/* Plan decision — prominent at the top */}
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <p className="text-[11px] font-semibold tracking-widest text-primary uppercase mb-2">
+                {weeklyFeedback.action === 'new_plan' ? 'Plan updated' : 'Same plan'}
+              </p>
+              <p className="text-sm text-foreground leading-relaxed">{weeklyFeedback.reason}</p>
 
-            {weeklyFeedback.analysis.ready_to_progress.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Ready to progress</p>
-                <div className="flex flex-wrap gap-2">
-                  {weeklyFeedback.analysis.ready_to_progress.map(ex => (
-                    <span key={ex} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
-                  ))}
-                </div>
-              </div>
-            )}
+              {weeklyFeedback.action === 'continue' && weeklyFeedback.weeks_to_continue && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Next check-in in{' '}
+                  <span className="font-semibold text-foreground">
+                    {weeklyFeedback.weeks_to_continue} week{weeklyFeedback.weeks_to_continue !== 1 ? 's' : ''}
+                  </span>.
+                </p>
+              )}
 
-            {weeklyFeedback.analysis.plateaued.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
-                <div className="flex flex-col gap-1.5">
-                  {weeklyFeedback.analysis.plateaued.map(p => (
-                    <div key={p.exercise} className="flex items-start gap-2">
-                      <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
-                      <span className="text-xs text-muted-foreground pt-1">{p.recommendation}</span>
+              {/* Changes list */}
+              {weeklyFeedback.action === 'new_plan' && weeklyFeedback.changes && weeklyFeedback.changes.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2.5">
+                  <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">What changed</p>
+                  {weeklyFeedback.changes.map((c, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                      <span className="font-semibold text-foreground">{c.exercise}</span>
+                      <span className="text-muted-foreground text-xs">{c.from}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-semibold text-primary">{c.to}</span>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {weeklyFeedback.analysis.needs_regression.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold tracking-widest text-red-500 uppercase mb-2">Needs easier variation</p>
-                <div className="flex flex-wrap gap-2">
-                  {weeklyFeedback.analysis.needs_regression.map(ex => (
-                    <span key={ex} className="text-xs font-medium text-red-600 bg-red-500/10 px-2.5 py-1 rounded-full">{ex}</span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Analysis */}
+            <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
+              <p className="text-sm text-foreground leading-relaxed">{weeklyFeedback.analysis.summary}</p>
 
-            {weeklyFeedback.analysis.insights.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Insights</p>
-                <ul className="flex flex-col gap-1">
-                  {weeklyFeedback.analysis.insights.map((insight, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                      <span className="text-accent mt-0.5">·</span>
-                      {insight}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="border-t border-border/60 pt-4 flex flex-col gap-3">
-              {weeklyFeedback.action === 'new_plan' ? (
-                <>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-0.5">Plan updated for next week</p>
-                    <p className="text-xs text-muted-foreground">{weeklyFeedback.reason}</p>
-                  </div>
-                  {weeklyFeedback.changes && weeklyFeedback.changes.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">What changes</p>
-                      <div className="flex flex-col gap-2">
-                        {weeklyFeedback.changes.map((c, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs flex-wrap">
-                            <span className="font-medium text-foreground">{c.exercise}</span>
-                            <span className="text-muted-foreground line-through">{c.from}</span>
-                            <svg className="w-3 h-3 text-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
-                            <span className="font-semibold text-primary">{c.to}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
+              {weeklyFeedback.analysis.ready_to_progress.length > 0 && (
                 <div>
-                  <p className="text-sm font-semibold text-foreground mb-1">Keep going</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{weeklyFeedback.reason}</p>
-                  {weeklyFeedback.weeks_to_continue && (
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      Next check-in in <span className="font-semibold text-foreground">{weeklyFeedback.weeks_to_continue} week{weeklyFeedback.weeks_to_continue !== 1 ? 's' : ''}</span>.
-                    </p>
-                  )}
+                  <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
+                  <div className="flex flex-wrap gap-2">
+                    {weeklyFeedback.analysis.ready_to_progress.map(ex => (
+                      <span key={ex} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {weeklyFeedback.analysis.plateaued.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
+                  <div className="flex flex-col gap-1.5">
+                    {weeklyFeedback.analysis.plateaued.map(p => (
+                      <div key={p.exercise} className="flex items-start gap-2">
+                        <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
+                        <span className="text-xs text-muted-foreground pt-1">{p.recommendation}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {weeklyFeedback.analysis.needs_regression.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold tracking-widest text-red-500 uppercase mb-2">Needs easier variation</p>
+                  <div className="flex flex-wrap gap-2">
+                    {weeklyFeedback.analysis.needs_regression.map(ex => (
+                      <span key={ex} className="text-xs font-medium text-red-600 bg-red-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {weeklyFeedback.analysis.insights.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Key takeaways</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {weeklyFeedback.analysis.insights.map((insight, i) => (
+                      <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                        <span className="text-primary mt-0.5 shrink-0">·</span>
+                        {insight}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
