@@ -1661,7 +1661,10 @@ export default function PlanPage() {
     setFinishingMsgIdx(0)
     try {
       const analysisRes = await fetch('/api/analyse-progressions', { method: 'POST' })
-      if (!analysisRes.ok) throw new Error('Analysis failed')
+      if (!analysisRes.ok) {
+        const body = await analysisRes.json().catch(() => ({ error: String(analysisRes.status) }))
+        throw new Error(body.error ?? 'Analysis failed')
+      }
       const analysis: ProgressionAnalysis = await analysisRes.json()
       setWeekFinishAnalysis(analysis)
 
@@ -2001,7 +2004,7 @@ export default function PlanPage() {
             <div>
               <p className="text-xs font-semibold tracking-widest text-destructive uppercase mb-1">Something went wrong</p>
               <h2 className="text-2xl font-black text-foreground leading-tight">Couldn&apos;t analyse your week</h2>
-              <p className="text-muted-foreground mt-2 text-sm">It usually works on the next try.</p>
+              <p className="text-muted-foreground mt-2 text-sm font-mono break-all">{finishWeekError}</p>
             </div>
             <div className="flex flex-col gap-3 mt-2">
               <Button

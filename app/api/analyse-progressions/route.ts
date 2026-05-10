@@ -90,7 +90,8 @@ Return ONLY a single-line compact JSON object with no explanation, no markdown, 
     const analysis: ProgressionAnalysis = JSON.parse(sanitized)
     return NextResponse.json(analysis)
   } catch (err) {
-    console.error('Analyse progressions error:', err)
-    return NextResponse.json({ error: 'Failed to analyse progressions' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('Analyse progressions error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
