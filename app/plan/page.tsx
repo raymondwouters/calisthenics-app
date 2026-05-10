@@ -140,29 +140,31 @@ function getInitialActiveDay(sessions: Session[], finishedDays?: Set<string>): n
   return 0
 }
 
+function getCalendarMonday(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 function getUserWeekInfo(planCreatedAt: Date): { weekNumber: number; start: Date; end: Date } {
-  const now = new Date()
-  const origin = new Date(planCreatedAt)
-  origin.setHours(0, 0, 0, 0)
+  const currentMonday = getCalendarMonday(new Date())
+  const registrationMonday = getCalendarMonday(planCreatedAt)
   const msPerWeek = 7 * 24 * 60 * 60 * 1000
-  const weekNumber = Math.floor(Math.max(0, now.getTime() - origin.getTime()) / msPerWeek) + 1
-  const start = new Date(origin.getTime() + (weekNumber - 1) * msPerWeek)
-  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+  const weekNumber = Math.floor((currentMonday.getTime() - registrationMonday.getTime()) / msPerWeek) + 1
+  const end = new Date(currentMonday.getTime() + 6 * 24 * 60 * 60 * 1000)
   end.setHours(23, 59, 59, 999)
-  return { weekNumber, start, end }
+  return { weekNumber: Math.max(1, weekNumber), start: currentMonday, end }
 }
 
 function getUserPrevWeekInfo(planCreatedAt: Date): { weekNumber: number; start: Date; end: Date } | null {
-  const { weekNumber } = getUserWeekInfo(planCreatedAt)
+  const { weekNumber, start } = getUserWeekInfo(planCreatedAt)
   if (weekNumber <= 1) return null
-  const origin = new Date(planCreatedAt)
-  origin.setHours(0, 0, 0, 0)
-  const msPerWeek = 7 * 24 * 60 * 60 * 1000
-  const prevWeekNumber = weekNumber - 1
-  const start = new Date(origin.getTime() + (prevWeekNumber - 1) * msPerWeek)
-  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
-  end.setHours(23, 59, 59, 999)
-  return { weekNumber: prevWeekNumber, start, end }
+  const prevStart = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const prevEnd = new Date(start.getTime() - 1)
+  prevEnd.setHours(23, 59, 59, 999)
+  return { weekNumber: weekNumber - 1, start: prevStart, end: prevEnd }
 }
 
 function formatWeekLabel(start: Date, end: Date): string {
