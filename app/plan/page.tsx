@@ -140,24 +140,29 @@ function getInitialActiveDay(sessions: Session[], finishedDays?: Set<string>): n
   return 0
 }
 
-function getWeekNumber(planCreatedAt: Date): number {
-  const { start: currentWeekStart } = getCurrentWeekRange()
-  const d = planCreatedAt.getDay()
-  const offset = d === 0 ? -6 : 1 - d
-  const planWeekStart = new Date(planCreatedAt)
-  planWeekStart.setDate(planCreatedAt.getDate() + offset)
-  planWeekStart.setHours(0, 0, 0, 0)
-  return Math.floor((currentWeekStart.getTime() - planWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+function getUserWeekInfo(planCreatedAt: Date): { weekNumber: number; start: Date; end: Date } {
+  const now = new Date()
+  const origin = new Date(planCreatedAt)
+  origin.setHours(0, 0, 0, 0)
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const weekNumber = Math.floor(Math.max(0, now.getTime() - origin.getTime()) / msPerWeek) + 1
+  const start = new Date(origin.getTime() + (weekNumber - 1) * msPerWeek)
+  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+  end.setHours(23, 59, 59, 999)
+  return { weekNumber, start, end }
 }
 
-function getPreviousWeekRange(): { start: Date; end: Date } {
-  const { start } = getCurrentWeekRange()
-  const prevMonday = new Date(start)
-  prevMonday.setDate(start.getDate() - 7)
-  const prevSunday = new Date(prevMonday)
-  prevSunday.setDate(prevMonday.getDate() + 6)
-  prevSunday.setHours(23, 59, 59, 999)
-  return { start: prevMonday, end: prevSunday }
+function getUserPrevWeekInfo(planCreatedAt: Date): { weekNumber: number; start: Date; end: Date } | null {
+  const { weekNumber } = getUserWeekInfo(planCreatedAt)
+  if (weekNumber <= 1) return null
+  const origin = new Date(planCreatedAt)
+  origin.setHours(0, 0, 0, 0)
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const prevWeekNumber = weekNumber - 1
+  const start = new Date(origin.getTime() + (prevWeekNumber - 1) * msPerWeek)
+  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+  end.setHours(23, 59, 59, 999)
+  return { weekNumber: prevWeekNumber, start, end }
 }
 
 function formatWeekLabel(start: Date, end: Date): string {
@@ -1419,14 +1424,15 @@ export default function PlanPage() {
             const { data: logsData } = await supabase
               .from('exercise_logs')
               .select('session_day, exercise_name, sets_data, logged_at')
-              .eq('plan_id', planRow.id)
+              .eq('user_id', user.id)
               .order('logged_at', { ascending: false })
 
             const logsMap = new Map<string, Map<string, SetLog[]>>()
             const prevLogsMap = new Map<string, Map<string, SetLog[]>>()
 
             if (logsData) {
-              const { start, end } = getCurrentWeekRange()
+              const registrationDate = new Date(firstPlanRow?.created_at ?? planRow.created_at)
+              const { start, end } = getUserWeekInfo(registrationDate)
               ;[...logsData].reverse().forEach(log => {
                 const loggedAt = new Date(log.logged_at)
                 if (loggedAt >= start && loggedAt <= end) {
@@ -1436,7 +1442,7 @@ export default function PlanPage() {
               })
               logsData.forEach(log => {
                 const loggedAt = new Date(log.logged_at)
-                if (loggedAt < getCurrentWeekRange().start) {
+                if (loggedAt < start) {
                   if (!prevLogsMap.has(log.session_day)) prevLogsMap.set(log.session_day, new Map())
                   const dayMap = prevLogsMap.get(log.session_day)!
                   if (!dayMap.has(log.exercise_name)) dayMap.set(log.exercise_name, log.sets_data)
@@ -1667,7 +1673,9 @@ export default function PlanPage() {
   const logsForActiveDay = displayLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
   const prevLogsForActiveDay = prevLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
 
-  const weekNumber = planCreatedAt ? getWeekNumber(planCreatedAt) : 1
+  const currWeekInfo = planCreatedAt ? getUserWeekInfo(planCreatedAt) : null
+  const prevWeekInfo = planCreatedAt ? getUserPrevWeekInfo(planCreatedAt) : null
+  const weekNumber = currWeekInfo?.weekNumber ?? 1
 
   const firstName = displayName ? displayName.split('@')[0].split(' ')[0] : null
   const todayDayName = getTodayDayName()
@@ -1720,8 +1728,6 @@ export default function PlanPage() {
 
         {/* Week tabs */}
         {(() => {
-          const prevRange = getPreviousWeekRange()
-          const currRange = getCurrentWeekRange()
           return (
             <>
               <div className="flex items-center gap-2 mb-3 pl-1">
@@ -1730,26 +1736,39 @@ export default function PlanPage() {
                     <button
                       onClick={() => setViewingPreviousWeek(false)}
                       className="text-muted-foreground/50 hover:text-muted-foreground text-base leading-none"
-                      aria-label="Back to current week"
-                    >
-                      ‹
-                    </button>
-                    <span className="text-[12px] text-muted-foreground/60">
-                      {formatWeekLabel(prevRange.start, prevRange.end)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setViewingPreviousWeek(true)}
-                      className="text-muted-foreground/30 hover:text-muted-foreground/60 text-base leading-none"
                       aria-label="View previous week"
                     >
                       ‹
                     </button>
-                    <span className="text-[12px] text-muted-foreground/60">
-                      Week {weekNumber} · {formatWeekLabel(currRange.start, currRange.end)}
-                    </span>
+                    <h2 className="text-[12px] font-semibold text-muted-foreground/60 flex-1">
+                      {prevWeekInfo
+                        ? `Week ${prevWeekInfo.weekNumber} · ${formatWeekLabel(prevWeekInfo.start, prevWeekInfo.end)}`
+                        : 'Previous week'}
+                    </h2>
+                    <button
+                      onClick={() => setViewingPreviousWeek(false)}
+                      className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                      aria-label="Return to current week"
+                    >
+                      Today →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {prevWeekInfo && (
+                      <button
+                        onClick={() => setViewingPreviousWeek(true)}
+                        className="text-muted-foreground/30 hover:text-muted-foreground/60 text-base leading-none"
+                        aria-label="View previous week"
+                      >
+                        ‹
+                      </button>
+                    )}
+                    <h2 className="text-[12px] font-semibold text-muted-foreground/60">
+                      {currWeekInfo
+                        ? `Week ${weekNumber} · ${formatWeekLabel(currWeekInfo.start, currWeekInfo.end)}`
+                        : `Week ${weekNumber}`}
+                    </h2>
                   </>
                 )}
               </div>
