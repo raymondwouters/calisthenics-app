@@ -56,8 +56,12 @@ function shortDate(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function weekLabel(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
 function buildProgressions(rows: LogRow[]): ExerciseProgression[] {
-  // Group by exercise, deduplicate by date (rows are DESC so first = latest per date)
   const byExercise = new Map<string, Map<string, LogRow>>()
 
   for (const row of rows) {
@@ -153,7 +157,6 @@ function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
         {shortDate(last.date)} · <span className="text-foreground/80">{formatSets(last.sets)}</span>
       </p>
 
-      {/* Session history */}
       {recent.length > 1 && (
         <div className="flex gap-1.5 flex-wrap">
           {recent.map((s, i) => {
@@ -182,13 +185,116 @@ function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
   )
 }
 
+function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
+  const needsWork = [
+    ...fb.analysis.needs_regression,
+    ...fb.analysis.plateaued.map(p => p.exercise),
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Plan decision */}
+      <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">
+            {fb.action === 'new_plan' ? 'Plan updated' : 'Same plan'}
+          </p>
+          <p className="text-[11px] text-muted-foreground">{weekLabel(fb.created_at)}</p>
+        </div>
+        <p className="text-sm text-foreground leading-relaxed">{fb.reason}</p>
+
+        {fb.action === 'continue' && fb.weeks_to_continue && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Next check-in in{' '}
+            <span className="font-semibold text-foreground">
+              {fb.weeks_to_continue} week{fb.weeks_to_continue !== 1 ? 's' : ''}
+            </span>.
+          </p>
+        )}
+
+        {fb.action === 'new_plan' && fb.changes && fb.changes.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2.5">
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">What changed</p>
+            {fb.changes.map((c, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="font-semibold text-foreground">{c.exercise}</span>
+                <span className="text-muted-foreground text-xs">{c.from}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-semibold text-primary">{c.to}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Analysis */}
+      <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
+        <p className="text-sm text-foreground leading-relaxed">{fb.analysis.summary}</p>
+
+        {fb.analysis.ready_to_progress.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
+            <div className="flex flex-wrap gap-2">
+              {fb.analysis.ready_to_progress.map(ex => (
+                <span key={ex} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {needsWork.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Need more time</p>
+            <div className="flex flex-wrap gap-2">
+              {needsWork.map((ex, i) => (
+                <span key={i} className="text-xs font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">{ex}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {fb.analysis.plateaued.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
+            <div className="flex flex-col gap-1.5">
+              {fb.analysis.plateaued.map(p => (
+                <div key={p.exercise} className="flex items-start gap-2">
+                  <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
+                  <span className="text-xs text-muted-foreground pt-1">{p.recommendation}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {fb.analysis.insights.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Key takeaways</p>
+            <ul className="flex flex-col gap-1.5">
+              {fb.analysis.insights.map((insight, i) => (
+                <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                  <span className="text-primary mt-0.5 shrink-0">·</span>
+                  {insight}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+type Tab = 'exercises' | 'weekly'
 
 export default function ProgressionPage() {
   const router = useRouter()
+  const [tab, setTab] = useState<Tab>('exercises')
   const [progressions, setProgressions] = useState<ExerciseProgression[]>([])
   const [loading, setLoading] = useState(true)
-  const [weeklyFeedback, setWeeklyFeedback] = useState<WeeklyFeedback | null>(null)
+  const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
 
   useEffect(() => {
     const supabase = createSupabaseBrowser()
@@ -208,16 +314,15 @@ export default function ProgressionPage() {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+          .limit(20),
       ])
 
       if (logsResult.data && logsResult.data.length > 0) {
         setProgressions(buildProgressions(logsResult.data as LogRow[]))
       }
 
-      if (feedbackResult.data) {
-        setWeeklyFeedback(feedbackResult.data as WeeklyFeedback)
+      if (feedbackResult.data && feedbackResult.data.length > 0) {
+        setWeeklyFeedbacks(feedbackResult.data as WeeklyFeedback[])
       }
 
       setLoading(false)
@@ -241,144 +346,99 @@ export default function ProgressionPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="max-w-2xl mx-auto px-5 sm:px-8 py-8">
+      <div className="max-w-2xl mx-auto px-5 sm:px-8 pt-8 pb-24">
 
-        <div className="mb-8">
+        <div className="mb-6">
           <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-1">Training</p>
           <h1 className="text-2xl font-bold text-foreground">Progression</h1>
         </div>
 
-        {/* ─── Weekly Feedback Box ─── */}
-        {weeklyFeedback && (
-          <div className="mb-8 flex flex-col gap-4">
-
-            {/* Plan decision — prominent at the top */}
-            <div className="bg-card border border-border rounded-2xl p-5">
-              <p className="text-[11px] font-semibold tracking-widest text-primary uppercase mb-2">
-                {weeklyFeedback.action === 'new_plan' ? 'Plan updated' : 'Same plan'}
-              </p>
-              <p className="text-sm text-foreground leading-relaxed">{weeklyFeedback.reason}</p>
-
-              {weeklyFeedback.action === 'continue' && weeklyFeedback.weeks_to_continue && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Next check-in in{' '}
-                  <span className="font-semibold text-foreground">
-                    {weeklyFeedback.weeks_to_continue} week{weeklyFeedback.weeks_to_continue !== 1 ? 's' : ''}
-                  </span>.
-                </p>
-              )}
-
-              {/* Changes list */}
-              {weeklyFeedback.action === 'new_plan' && weeklyFeedback.changes && weeklyFeedback.changes.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2.5">
-                  <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">What changed</p>
-                  {weeklyFeedback.changes.map((c, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                      <span className="font-semibold text-foreground">{c.exercise}</span>
-                      <span className="text-muted-foreground text-xs">{c.from}</span>
-                      <span className="text-muted-foreground">→</span>
-                      <span className="font-semibold text-primary">{c.to}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Analysis */}
-            <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
-              <p className="text-sm text-foreground leading-relaxed">{weeklyFeedback.analysis.summary}</p>
-
-              {weeklyFeedback.analysis.ready_to_progress.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
-                  <div className="flex flex-wrap gap-2">
-                    {weeklyFeedback.analysis.ready_to_progress.map(ex => (
-                      <span key={ex} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {weeklyFeedback.analysis.plateaued.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
-                  <div className="flex flex-col gap-1.5">
-                    {weeklyFeedback.analysis.plateaued.map(p => (
-                      <div key={p.exercise} className="flex items-start gap-2">
-                        <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
-                        <span className="text-xs text-muted-foreground pt-1">{p.recommendation}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {weeklyFeedback.analysis.needs_regression.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold tracking-widest text-red-500 uppercase mb-2">Needs easier variation</p>
-                  <div className="flex flex-wrap gap-2">
-                    {weeklyFeedback.analysis.needs_regression.map(ex => (
-                      <span key={ex} className="text-xs font-medium text-red-600 bg-red-500/10 px-2.5 py-1 rounded-full">{ex}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {weeklyFeedback.analysis.insights.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Key takeaways</p>
-                  <ul className="flex flex-col gap-1.5">
-                    {weeklyFeedback.analysis.insights.map((insight, i) => (
-                      <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                        <span className="text-primary mt-0.5 shrink-0">·</span>
-                        {insight}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-          </div>
-        )}
-
-        {progressions.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground text-sm">No sessions logged yet.</p>
-            <p className="text-muted-foreground/70 text-xs mt-1">Accept your plan and start logging sets to track your progression.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-8">
-
-            {improving.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <p className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">Getting stronger</p>
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs text-muted-foreground">{improving.length} exercise{improving.length !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {improving.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
-                </div>
-              </div>
+        {/* Tabs */}
+        <div className="flex gap-1 bg-secondary rounded-xl p-1 mb-8">
+          <button
+            onClick={() => setTab('exercises')}
+            className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${
+              tab === 'exercises'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Exercises
+          </button>
+          <button
+            onClick={() => setTab('weekly')}
+            className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+              tab === 'weekly'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Weekly
+            {weeklyFeedbacks.length > 0 && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                tab === 'weekly' ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'
+              }`}>
+                {weeklyFeedbacks.length}
+              </span>
             )}
+          </button>
+        </div>
 
-            {rest.length > 0 && (
-              <div>
-                {improving.length > 0 && (
+        {/* ─── Exercises tab ─── */}
+        {tab === 'exercises' && (
+          progressions.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground text-sm">No sessions logged yet.</p>
+              <p className="text-muted-foreground/70 text-xs mt-1">Accept your plan and start logging sets to track your progression.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {improving.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <p className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">Getting stronger</p>
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">{improving.length} exercise{improving.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {improving.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
+                  </div>
+                </div>
+              )}
+
+              {rest.length > 0 && (
+                <div>
                   <div className="flex items-center gap-3 mb-4">
                     <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">All exercises</p>
                     <div className="flex-1 h-px bg-border" />
                     <span className="text-xs text-muted-foreground">{rest.length}</span>
                   </div>
-                )}
-                <div className="flex flex-col gap-3">
-                  {rest.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
+                  <div className="flex flex-col gap-3">
+                    {rest.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )
+        )}
 
-          </div>
+        {/* ─── Weekly tab ─── */}
+        {tab === 'weekly' && (
+          weeklyFeedbacks.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground text-sm">No weekly updates yet.</p>
+              <p className="text-muted-foreground/70 text-xs mt-1">Finish a week to see your analysis and plan updates here.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-10">
+              {weeklyFeedbacks.map((fb, i) => (
+                <div key={fb.id}>
+                  {i > 0 && <div className="h-px bg-border mb-10" />}
+                  <WeeklyFeedbackCard fb={fb} />
+                </div>
+              ))}
+            </div>
+          )
         )}
 
       </div>
