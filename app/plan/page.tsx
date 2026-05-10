@@ -1197,122 +1197,6 @@ function FinishWeekLoadingOverlay({ msgIdx }: FinishWeekLoadingOverlayProps) {
   )
 }
 
-// ─── FinishWeekOverlay ────────────────────────────────────────────────────────
-
-interface FinishWeekOverlayProps {
-  result: NextWeekPlanResponse
-  analysis: ProgressionAnalysis | null
-  onClose: () => void
-  onViewProgressions: () => void
-}
-
-function FinishWeekOverlay({ result, analysis, onClose, onViewProgressions }: FinishWeekOverlayProps) {
-  const isContinue = result.action === 'continue'
-  const needsWork = [
-    ...(analysis?.needs_regression ?? []),
-    ...(analysis?.plateaued.map(p => p.exercise) ?? []),
-  ]
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-2xl bg-card border-t border-border rounded-t-3xl px-6 pt-6 pb-12 flex flex-col gap-5">
-        <div className="w-10 h-1 bg-border rounded-full mb-1 mx-auto" />
-
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Week done</p>
-          <h2 className="text-2xl font-black text-foreground leading-tight">
-            {isContinue ? 'Same schedule next week.' : 'New plan ready.'}
-          </h2>
-          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-            {isContinue
-              ? `Your training looked good — next week follows the same schedule. ${result.reason}`
-              : result.reason}
-          </p>
-        </div>
-
-        {analysis && analysis.ready_to_progress.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Progressing well</p>
-            <div className="flex flex-wrap gap-2">
-              {analysis.ready_to_progress.map((ex, i) => (
-                <span key={i} className="bg-emerald-500/10 text-emerald-600 text-xs font-medium px-3 py-1 rounded-full">
-                  {ex}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {analysis && needsWork.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Need more time</p>
-            <div className="flex flex-wrap gap-2">
-              {needsWork.map((ex, i) => (
-                <span key={i} className="bg-secondary text-muted-foreground text-xs font-medium px-3 py-1 rounded-full">
-                  {ex}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {analysis && analysis.insights.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Key takeaways</p>
-            <ul className="flex flex-col gap-1">
-              {analysis.insights.map((insight, i) => (
-                <li key={i} className="text-sm text-muted-foreground leading-relaxed flex gap-2">
-                  <span className="text-primary mt-0.5">·</span>
-                  <span>{insight}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {isContinue && (
-          <div className="bg-secondary rounded-xl px-4 py-3">
-            <p className="text-sm text-foreground">
-              {result.weeks_to_continue
-                ? <>Next week uses the same schedule. We&apos;ll check in again in <span className="font-bold">{result.weeks_to_continue}</span> week{result.weeks_to_continue !== 1 ? 's' : ''}.</>
-                : 'Next week uses the same schedule.'}
-            </p>
-          </div>
-        )}
-
-        {!isContinue && result.changes && result.changes.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">What changed</p>
-            {result.changes.map((c, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
-                <span className="text-foreground font-medium">{c.exercise}</span>
-                <span className="text-muted-foreground">{c.from}</span>
-                <span className="text-muted-foreground">→</span>
-                <span className="text-primary font-medium">{c.to}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3 mt-2">
-          <Button
-            onClick={onClose}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12"
-          >
-            {isContinue ? 'Got it — start Monday' : 'Load next week →'}
-          </Button>
-          <button
-            onClick={onViewProgressions}
-            className="w-full text-sm text-muted-foreground py-2 underline underline-offset-2"
-          >
-            See my progressions
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── PlanPage ─────────────────────────────────────────────────────────────────
 
 const GENERATING_MESSAGES = [
@@ -1355,7 +1239,6 @@ export default function PlanPage() {
   const [finishingMsgIdx, setFinishingMsgIdx] = useState(0)
   const [finishWeekError, setFinishWeekError] = useState('')
   const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
-  const [weekFinishResult, setWeekFinishResult] = useState<NextWeekPlanResponse | null>(null)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1507,6 +1390,16 @@ export default function PlanPage() {
             .single()
 
           if (planRow) {
+            // Use the oldest plan's created_at as program start so the week counter
+            // never resets to 1 after a new plan is generated.
+            const { data: firstPlanRow } = await supabase
+              .from('plans')
+              .select('created_at')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .single()
+
             const { data: logsData } = await supabase
               .from('exercise_logs')
               .select('session_day, exercise_name, sets_data, logged_at')
@@ -1539,7 +1432,7 @@ export default function PlanPage() {
             setPlan(planRow.plan as PlanResponse)
             setPlanId(planRow.id)
             setInputs(planRow.inputs as GenerateRequest)
-            setPlanCreatedAt(new Date(planRow.created_at))
+            setPlanCreatedAt(new Date(firstPlanRow?.created_at ?? planRow.created_at))
             setAllLogs(logsMap)
             setPrevLogs(prevLogsMap)
             setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(logsMap.keys())))
@@ -1675,7 +1568,8 @@ export default function PlanPage() {
       })
       if (!nextRes.ok) throw new Error('Plan generation failed')
       const result: NextWeekPlanResponse = await nextRes.json()
-      setWeekFinishResult(result)
+      sessionStorage.setItem('week-summary', JSON.stringify({ result, analysis }))
+      router.push('/plan/week-summary')
     } catch (err) {
       console.error('Finish week error:', err)
       setFinishWeekError('Something went wrong. Try again.')
@@ -2024,22 +1918,6 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Finish week — results overlay */}
-      {weekFinishResult && (
-        <FinishWeekOverlay
-          result={weekFinishResult}
-          analysis={weekFinishAnalysis}
-          onClose={() => {
-            if (weekFinishResult.action === 'new_plan') {
-              router.replace('/plan')
-            }
-            setWeekFinishResult(null)
-          }}
-          onViewProgressions={() => {
-            router.push('/progression')
-          }}
-        />
-      )}
     </main>
   )
 }
