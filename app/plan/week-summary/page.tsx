@@ -42,8 +42,17 @@ export default function WeekSummaryPage() {
 
   const { result, analysis } = data
   const isContinue = result.action === 'continue'
+
+  // AI may occasionally return exercise lists as objects instead of strings — normalize defensively
+  function toStr(item: unknown): string {
+    if (typeof item === 'string') return item
+    if (item && typeof item === 'object' && 'exercise' in item) return (item as Record<string, string>).exercise
+    return String(item)
+  }
+
+  const readyToProgress = (analysis.ready_to_progress ?? []).map(toStr)
   const needsWork = [
-    ...analysis.needs_regression,
+    ...(analysis.needs_regression ?? []).map(toStr),
     ...analysis.plateaued.map(p => p.exercise),
   ]
 
@@ -64,11 +73,11 @@ export default function WeekSummaryPage() {
         </div>
 
         {/* Progressing well */}
-        {analysis.ready_to_progress.length > 0 && (
+        {readyToProgress.length > 0 && (
           <section className="mb-8">
             <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-3">Progressing well</p>
             <ul className="flex flex-col gap-3">
-              {analysis.ready_to_progress.map((ex, i) => (
+              {readyToProgress.map((ex, i) => (
                 <li key={i} className="text-sm text-muted-foreground leading-relaxed flex gap-3">
                   <span className="text-primary mt-0.5 shrink-0">·</span>
                   <span>{ex}</span>

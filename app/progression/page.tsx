@@ -185,11 +185,18 @@ function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
   )
 }
 
+function toExStr(item: unknown): string {
+  if (typeof item === 'string') return item
+  if (item && typeof item === 'object' && 'exercise' in item) return (item as Record<string, string>).exercise
+  return String(item)
+}
+
 function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
   const needsWork = [
-    ...fb.analysis.needs_regression,
+    ...(fb.analysis.needs_regression ?? []).map(toExStr),
     ...fb.analysis.plateaued.map(p => p.exercise),
   ]
+  const readyToProgress = (fb.analysis.ready_to_progress ?? []).map(toExStr)
 
   return (
     <div className="flex flex-col gap-4">
@@ -229,12 +236,12 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
 
       {/* Analysis */}
       <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
-        {fb.analysis.ready_to_progress.length > 0 && (
+        {readyToProgress.length > 0 && (
           <div>
             <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
             <div className="flex flex-wrap gap-2">
-              {fb.analysis.ready_to_progress.map(ex => (
-                <span key={ex} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+              {readyToProgress.map((ex, i) => (
+                <span key={i} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
               ))}
             </div>
           </div>
