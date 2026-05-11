@@ -27,6 +27,8 @@ Rules:
 - Each node must have a "name" (string), "assisted" (boolean), and optionally "notes" (string — one short phrase explaining the variant or a coaching cue, only for assisted nodes).
 - Keep family names short and clear: "Horizontal Push", "Vertical Push", "Horizontal Pull", "Vertical Pull", "Core", "Legs", "Skill" etc.
 - Only include families that contain at least one exercise from the user's list.
+- EXCLUDE any family that is primarily warm-up, mobility, stretching, or support/preparation work (e.g. "Support and Preparation", "Warm-up", "Flexibility", "Mobility"). Only include strength and skill progression lines.
+- Ring Push-up (on rings without RTO) is an intermediate step that comes AFTER Decline Push-up and BEFORE Archer Push-up in the horizontal push line. Do not place it after Archer Push-up.
 
 Return ONLY a single-line compact JSON object — no explanation, no markdown:
 {"lines":[{"family":"Horizontal Push","nodes":[{"name":"Wall push-up","assisted":false},{"name":"Incline push-up","assisted":false},{"name":"Knee push-up","assisted":false},{"name":"Push-up","assisted":false},{"name":"Archer push-up","assisted":false}]}]}`

@@ -135,7 +135,7 @@ function ProgressionLineRow({
   historyMap: Map<string, ExerciseHistory>
 }) {
   const lastLoggedIndex = line.nodes.reduce((acc, node, i) => historyMap.has(node.name) ? i : acc, -1)
-  const [open, setOpen] = useState(lastLoggedIndex >= 0)
+  const [open, setOpen] = useState(false)
   const currentNode = lastLoggedIndex >= 0 ? line.nodes[lastLoggedIndex] : null
 
   return (
@@ -401,7 +401,7 @@ export default function ProgressionPage() {
 
         // Fetch progression lines, using sessionStorage as cache keyed on sorted exercise names
         const uniqueNames = Array.from(map.keys()).sort()
-        const cacheKey = `progression-lines:${uniqueNames.join(',')}`
+        const cacheKey = `progression-lines:v2:${uniqueNames.join(',')}`
         const cached = sessionStorage.getItem(cacheKey)
         if (cached) {
           setProgressionLines(JSON.parse(cached))
@@ -504,7 +504,7 @@ export default function ProgressionPage() {
               <p className="text-muted-foreground text-sm">Could not load progression lines.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-5">
               {progressionLines.map(line => (
                 <ProgressionLineRow key={line.family} line={line} historyMap={historyMap} />
               ))}
