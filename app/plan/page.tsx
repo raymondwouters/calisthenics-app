@@ -187,6 +187,14 @@ function getUserPrevWeekInfo(planCreatedAt: Date): { weekNumber: number; start: 
   return { weekNumber: weekNumber - 1, start: prevStart, end: prevEnd }
 }
 
+function getWeekInfoByOffset(planCreatedAt: Date, offset: number): { weekNumber: number; start: Date; end: Date } {
+  const curr = getUserWeekInfo(planCreatedAt)
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const start = new Date(curr.start.getTime() - offset * msPerWeek)
+  const end = new Date(curr.end.getTime() - offset * msPerWeek)
+  return { weekNumber: Math.max(1, curr.weekNumber - offset), start, end }
+}
+
 function formatWeekLabel(start: Date, end: Date): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
   return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`
@@ -1313,11 +1321,15 @@ export default function PlanPage() {
   const [finishingMsgIdx, setFinishingMsgIdx] = useState(0)
   const [finishWeekError, setFinishWeekError] = useState('')
   const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
-  const [viewingPreviousWeek, setViewingPreviousWeek] = useState(false)
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [weekLogsMap, setWeekLogsMap] = useState<Map<number, Map<string, Map<string, SetLog[]>>>>(new Map())
   const [weekIsFinished, setWeekIsFinished] = useState(false)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
+  // Snapshot of sessions at load time — used as fallback for the previous-week view
+  // so that in-session exercise adjustments don't bleed into historical views.
+  const loadedSessionsRef = useRef<Session[] | null>(null)
   const pendingSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const schedulePlanSave = (oldExerciseName: string, sessionDay: string) => {
@@ -1503,19 +1515,24 @@ export default function PlanPage() {
             setWeekIsFinished(!weekOverridden && !!weekFeedback)
 
             if (logsData) {
-              const prevWeekMonday = new Date(currWeekMonday.getTime() - 7 * 24 * 60 * 60 * 1000)
-
+              const allWeeksMap = new Map<number, Map<string, Map<string, SetLog[]>>>()
               ;[...logsData].reverse().forEach(log => {
                 const loggedAt = new Date(log.logged_at)
                 const logMonday = getLogWeekMonday(log.session_day, loggedAt)
-                if (logMonday.getTime() === currWeekMonday.getTime()) {
-                  if (!logsMap.has(log.session_day)) logsMap.set(log.session_day, new Map())
-                  logsMap.get(log.session_day)!.set(log.exercise_name, log.sets_data)
-                } else if (logMonday.getTime() === prevWeekMonday.getTime()) {
-                  if (!prevLogsMap.has(log.session_day)) prevLogsMap.set(log.session_day, new Map())
-                  const dayMap = prevLogsMap.get(log.session_day)!
-                  if (!dayMap.has(log.exercise_name)) dayMap.set(log.exercise_name, log.sets_data)
-                }
+                const offset = Math.round((currWeekMonday.getTime() - logMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
+                if (offset < 0) return
+                if (!allWeeksMap.has(offset)) allWeeksMap.set(offset, new Map())
+                const dayMap = allWeeksMap.get(offset)!
+                if (!dayMap.has(log.session_day)) dayMap.set(log.session_day, new Map())
+                const exMap = dayMap.get(log.session_day)!
+                if (!exMap.has(log.exercise_name)) exMap.set(log.exercise_name, log.sets_data)
+              })
+              setWeekLogsMap(allWeeksMap)
+              allWeeksMap.get(0)?.forEach((dayMap, day) => {
+                logsMap.set(day, dayMap)
+              })
+              allWeeksMap.get(1)?.forEach((dayMap, day) => {
+                prevLogsMap.set(day, dayMap)
               })
             }
 
@@ -1530,6 +1547,7 @@ export default function PlanPage() {
               .maybeSingle()
 
             // Set plan + logs together so ExerciseCards mount with correct initialLogs
+            loadedSessionsRef.current = (planRow.plan as PlanResponse).plan.sessions
             setPlan(planRow.plan as PlanResponse)
             setPlanId(planRow.id)
             setInputs(planRow.inputs as GenerateRequest)
@@ -1747,20 +1765,23 @@ export default function PlanPage() {
   const { level, goal, days_per_week, sessions } = plan.plan
   const equipment = inputs?.equipment ?? []
 
-  // When viewing a previous week, show that week's exercises (different plan version)
-  const prevSessions = prevPlan?.plan.sessions ?? sessions
-  const activeSession: Session = viewingPreviousWeek
+  // When viewing a previous week, show that week's exercises (different plan version).
+  // Fall back to the load-time snapshot so in-session adjustments don't bleed through.
+  const prevSessions = prevPlan?.plan.sessions ?? loadedSessionsRef.current ?? sessions
+  const activeSession: Session = weekOffset >= 1
     ? (prevSessions.find(s => s.day === sessions[activeDay]?.day) ?? prevSessions[activeDay] ?? sessions[activeDay] ?? sessions[0])
     : (sessions[activeDay] ?? sessions[0])
   const isRestDay = activeSession.type === 'rest'
 
-  const displayLogs = viewingPreviousWeek ? prevLogs : allLogs
+  const displayLogs = weekLogsMap.get(weekOffset) ?? new Map<string, Map<string, SetLog[]>>()
   const logsForActiveDay = displayLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
-  const prevLogsForActiveDay = prevLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
+  const prevLogsForActiveDay = (weekLogsMap.get(weekOffset + 1) ?? new Map<string, Map<string, SetLog[]>>()).get(activeSession.day) ?? new Map<string, SetLog[]>()
 
   const currWeekInfo = planCreatedAt ? getUserWeekInfo(planCreatedAt) : null
   const prevWeekInfo = planCreatedAt ? getUserPrevWeekInfo(planCreatedAt) : null
   const weekNumber = currWeekInfo?.weekNumber ?? 1
+  const viewingWeekInfo = planCreatedAt ? getWeekInfoByOffset(planCreatedAt, weekOffset) : null
+  const maxOffset = currWeekInfo ? currWeekInfo.weekNumber - 1 : 0
 
   const firstName = displayName ? displayName.split('@')[0].split(' ')[0] : null
   const todayDayName = getTodayDayName()
@@ -1815,53 +1836,46 @@ export default function PlanPage() {
         {(() => {
           return (
             <>
-              <div className="flex items-center gap-2 mb-3 pl-1">
-                {viewingPreviousWeek ? (
+              <div className="flex items-center gap-3 mb-3">
+                <button
+                  onClick={() => setWeekOffset(o => Math.min(o + 1, maxOffset))}
+                  disabled={weekOffset >= maxOffset}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                  aria-label="Go to previous week"
+                >
+                  ‹
+                </button>
+                <h2 className="text-sm font-semibold text-foreground/80 flex-1">
+                  {viewingWeekInfo
+                    ? `Week ${viewingWeekInfo.weekNumber} · ${formatWeekLabel(viewingWeekInfo.start, viewingWeekInfo.end)}`
+                    : `Week ${weekNumber}`}
+                </h2>
+                {weekOffset > 0 ? (
                   <>
                     <button
-                      onClick={() => setViewingPreviousWeek(false)}
-                      className="text-muted-foreground/50 hover:text-muted-foreground text-base leading-none"
-                      aria-label="View previous week"
+                      onClick={() => setWeekOffset(o => Math.max(o - 1, 0))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors"
+                      aria-label="Go to next week"
                     >
-                      ‹
+                      ›
                     </button>
-                    <h2 className="text-[12px] font-semibold text-muted-foreground/60 flex-1">
-                      {prevWeekInfo
-                        ? `Week ${prevWeekInfo.weekNumber} · ${formatWeekLabel(prevWeekInfo.start, prevWeekInfo.end)}`
-                        : 'Previous week'}
-                    </h2>
                     <button
-                      onClick={() => setViewingPreviousWeek(false)}
-                      className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                      aria-label="Return to current week"
+                      onClick={() => setWeekOffset(0)}
+                      className="h-8 px-3 rounded-lg text-xs font-semibold text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors"
+                      aria-label="Return to today"
                     >
-                      Today →
+                      Today
                     </button>
                   </>
                 ) : (
-                  <>
-                    {prevWeekInfo && (
-                      <button
-                        onClick={() => setViewingPreviousWeek(true)}
-                        className="text-muted-foreground/30 hover:text-muted-foreground/60 text-base leading-none"
-                        aria-label="View previous week"
-                      >
-                        ‹
-                      </button>
-                    )}
-                    <h2 className="text-[12px] font-semibold text-muted-foreground/60">
-                      {currWeekInfo
-                        ? `Week ${weekNumber} · ${formatWeekLabel(currWeekInfo.start, currWeekInfo.end)}`
-                        : `Week ${weekNumber}`}
-                    </h2>
-                  </>
+                  <div className="w-8" />
                 )}
               </div>
               <div className="bg-card rounded-2xl p-1 flex gap-0.5 mb-1">
                 {sessions.map((session, i) => {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
-                  const isToday = !viewingPreviousWeek && todaySessionIdx === i
+                  const isToday = weekOffset === 0 && todaySessionIdx === i
                   const isDone = !isRest && displayLogs.has(session.day)
                   const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
                   return (
@@ -1951,13 +1965,13 @@ export default function PlanPage() {
               onSetLogged={handleSetLogged}
               onAdjusted={schedulePlanSave}
               onUndone={cancelPlanSave}
-              isPreview={!isAccepted || isRestDay || viewingPreviousWeek || weekIsFinished}
+              isPreview={!isAccepted || isRestDay || weekOffset >= 1 || weekIsFinished}
             />
           ))}
         </div>
 
         {/* Session undo notice — shown after progression until dismissed or day changes */}
-        {sessionUndo && sessionUndo.sessionIndex === activeDay && !viewingPreviousWeek && !weekIsFinished && (
+        {sessionUndo && sessionUndo.sessionIndex === activeDay && weekOffset === 0 && !weekIsFinished && (
           <div className="mt-6 flex items-center justify-between rounded-xl border border-border px-4 py-3">
             <p className="text-sm text-muted-foreground">Session updated with harder exercises.</p>
             <button
@@ -1973,7 +1987,7 @@ export default function PlanPage() {
         )}
 
         {/* Refine this day — only on accepted workout days, not when viewing previous week */}
-        {inputs && isAccepted && !isRestDay && !viewingPreviousWeek && !weekIsFinished && (
+        {inputs && isAccepted && !isRestDay && weekOffset === 0 && !weekIsFinished && (
           <RefineDayForm
             session={activeSession}
             inputs={inputs}
@@ -2001,7 +2015,7 @@ export default function PlanPage() {
       )}
 
       {/* Sticky bottom bar — finish week (Sunday only) */}
-      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && !viewingPreviousWeek && !weekIsFinished && (
+      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && weekOffset === 0 && !weekIsFinished && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button
