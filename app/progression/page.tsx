@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { SetLog, WeeklyFeedback, ProgressionLine } from '@/lib/types'
@@ -95,127 +95,37 @@ function buildHistoryMap(rows: LogRow[]): Map<string, ExerciseHistory> {
   return result
 }
 
-// ─── Progression chain node ───────────────────────────────────────────────────
+// ─── Session history inline (shown below current node) ───────────────────────
 
-function NodePopover({
-  history,
-  onClose,
-}: {
-  history: ExerciseHistory
-  onClose: () => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
+function SessionHistory({ history }: { history: ExerciseHistory }) {
   const recent = history.sessions.slice(-5)
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [onClose])
-
   return (
-    <div
-      ref={ref}
-      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-20 w-56 bg-card border border-border rounded-xl shadow-lg p-3"
-    >
-      <p className="text-xs font-semibold text-foreground mb-2">{history.name}</p>
-
-      {recent.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap mb-2">
-          {recent.map((s, i) => {
-            const isLatest = i === recent.length - 1
-            const prev = i > 0 ? recent[i - 1] : null
-            const improved = prev && s.best !== null && prev.best !== null && s.best > prev.best
-            return (
-              <div
-                key={s.dateKey}
-                className={`flex flex-col items-center px-2 py-1.5 rounded-lg min-w-[40px] ${
-                  isLatest
-                    ? improved ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-secondary border border-border'
-                    : 'bg-secondary/60'
-                }`}
-              >
-                <span className={`text-[11px] font-bold leading-none ${isLatest ? (improved ? 'text-emerald-600' : 'text-foreground') : 'text-muted-foreground'}`}>
-                  {s.best !== null && s.unit ? formatBest(s.best, s.unit) : '✓'}
-                </span>
-                <span className="text-[9px] text-muted-foreground mt-0.5 whitespace-nowrap">{shortDate(s.date)}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      <p className="text-xs text-muted-foreground">{formatSets(recent[recent.length - 1].sets)}</p>
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-border" />
+    <div className="flex gap-1.5 flex-wrap mt-2">
+      {recent.map((s, i) => {
+        const isLatest = i === recent.length - 1
+        const prev = i > 0 ? recent[i - 1] : null
+        const improved = prev && s.best !== null && prev.best !== null && s.best > prev.best
+        return (
+          <div
+            key={s.dateKey}
+            className={`flex flex-col items-center px-2 py-1.5 rounded-lg min-w-[40px] ${
+              isLatest
+                ? improved ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-secondary border border-border'
+                : 'bg-secondary/60'
+            }`}
+          >
+            <span className={`text-[11px] font-bold leading-none ${isLatest ? (improved ? 'text-emerald-600' : 'text-foreground') : 'text-muted-foreground'}`}>
+              {s.best !== null && s.unit ? formatBest(s.best, s.unit) : '✓'}
+            </span>
+            <span className="text-[9px] text-muted-foreground mt-0.5 whitespace-nowrap">{shortDate(s.date)}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-interface ChainNodeProps {
-  name: string
-  assisted: boolean
-  notes?: string
-  history: ExerciseHistory | undefined
-}
-
-function ChainNode({ name, assisted, notes, history }: ChainNodeProps) {
-  const [open, setOpen] = useState(false)
-  const logged = !!history
-
-  const dotBase = 'relative flex flex-col items-center gap-1.5 cursor-default'
-  const circleBase = 'rounded-full flex items-center justify-center transition-all'
-
-  let circleClass: string
-  let labelClass: string
-
-  if (logged && history!.trend === 'up') {
-    circleClass = `w-8 h-8 ${circleBase} bg-emerald-500 shadow-sm shadow-emerald-500/30 cursor-pointer`
-    labelClass = 'text-[10px] font-semibold text-emerald-600 text-center leading-tight'
-  } else if (logged) {
-    circleClass = `w-8 h-8 ${circleBase} bg-primary cursor-pointer`
-    labelClass = 'text-[10px] font-medium text-foreground text-center leading-tight'
-  } else if (assisted) {
-    circleClass = `w-6 h-6 ${circleBase} border-2 border-dashed border-border bg-background`
-    labelClass = 'text-[9px] text-muted-foreground/60 text-center leading-tight'
-  } else {
-    circleClass = `w-7 h-7 ${circleBase} border-2 border-border bg-background`
-    labelClass = 'text-[10px] text-muted-foreground text-center leading-tight'
-  }
-
-  return (
-    <div className={dotBase}>
-      <div className="relative">
-        <button
-          className={circleClass}
-          onClick={() => logged && setOpen(o => !o)}
-          aria-label={name}
-        >
-          {logged && (
-            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-          {!logged && assisted && (
-            <span className="text-[9px] text-muted-foreground/50">+</span>
-          )}
-        </button>
-        {open && history && (
-          <NodePopover history={history} onClose={() => setOpen(false)} />
-        )}
-      </div>
-
-      <span className={labelClass} style={{ maxWidth: 64 }}>{name}</span>
-
-      {assisted && notes && (
-        <span className="text-[8px] text-muted-foreground/50 text-center leading-tight" style={{ maxWidth: 64 }}>{notes}</span>
-      )}
-    </div>
-  )
-}
-
-// ─── Full progression line row ─────────────────────────────────────────────────
+// ─── Vertical progression line accordion ─────────────────────────────────────
 
 function ProgressionLineRow({
   line,
@@ -224,50 +134,118 @@ function ProgressionLineRow({
   line: ProgressionLine
   historyMap: Map<string, ExerciseHistory>
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  // Find the rightmost logged node index for initial scroll position
   const lastLoggedIndex = line.nodes.reduce((acc, node, i) => historyMap.has(node.name) ? i : acc, -1)
-
-  useEffect(() => {
-    if (scrollRef.current && lastLoggedIndex > 3) {
-      const nodeWidth = 96 // approximate px per node
-      scrollRef.current.scrollLeft = Math.max(0, (lastLoggedIndex - 2) * nodeWidth)
-    }
-  }, [lastLoggedIndex])
+  const [open, setOpen] = useState(lastLoggedIndex >= 0)
+  const currentNode = lastLoggedIndex >= 0 ? line.nodes[lastLoggedIndex] : null
 
   return (
-    <div>
-      <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-4">{line.family}</p>
-
-      <div ref={scrollRef} className="overflow-x-auto pb-2 -mx-1 px-1">
-        <div className="flex items-start gap-0 min-w-max">
-          {line.nodes.map((node, i) => {
-            const isLast = i === line.nodes.length - 1
-            const history = historyMap.get(node.name)
-            const nextLogged = !isLast && historyMap.has(line.nodes[i + 1].name)
-            const currentLogged = !!history
-
-            return (
-              <div key={node.name} className="flex items-center">
-                <ChainNode
-                  name={node.name}
-                  assisted={node.assisted}
-                  notes={node.notes}
-                  history={history}
-                />
-                {!isLast && (
-                  <div className={`h-px w-6 shrink-0 mt-[-20px] ${
-                    currentLogged && nextLogged
-                      ? 'bg-primary'
-                      : 'bg-border'
-                  }`} />
-                )}
-              </div>
-            )
-          })}
+    <div className="border border-border rounded-2xl overflow-hidden">
+      {/* Accordion header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3.5 bg-card hover:bg-secondary/40 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-foreground">{line.family}</span>
+          {currentNode && (
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+              {currentNode.name}
+            </span>
+          )}
         </div>
-      </div>
+        <svg
+          className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Accordion body */}
+      {open && (
+        <div className="px-4 pt-2 pb-4 bg-card border-t border-border">
+          <div className="relative">
+            {/* Vertical connecting line */}
+            <div className="absolute left-[11px] top-3 bottom-3 w-px bg-border" />
+
+            <div className="flex flex-col gap-0">
+              {line.nodes.map((node, i) => {
+                const history = historyMap.get(node.name)
+                const logged = !!history
+                const isCurrent = i === lastLoggedIndex
+                const isPast = i < lastLoggedIndex
+
+                let dotClass: string
+                if (isCurrent) {
+                  dotClass = 'w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 relative z-10'
+                } else if (isPast) {
+                  dotClass = 'w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center shrink-0 relative z-10'
+                } else if (node.assisted) {
+                  dotClass = 'w-4 h-4 rounded-full border border-dashed border-border bg-background mx-1 shrink-0 relative z-10'
+                } else {
+                  dotClass = 'w-6 h-6 rounded-full border-2 border-border bg-background flex items-center justify-center shrink-0 relative z-10'
+                }
+
+                return (
+                  <div key={node.name} className={`flex items-start gap-3 py-2 ${isCurrent ? 'relative' : ''}`}>
+                    {/* Dot */}
+                    <div className={dotClass}>
+                      {(isCurrent || isPast) && (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+
+                    {/* Row content */}
+                    {isCurrent ? (
+                      <div className="flex-1 bg-secondary rounded-xl px-3 py-2.5 -mt-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-foreground">{node.name}</span>
+                          {history && (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              history.trend === 'up'
+                                ? 'text-emerald-700 bg-emerald-500/10'
+                                : 'text-muted-foreground bg-background'
+                            }`}>
+                              {history.trend === 'up' ? `+${history.delta}${history.unit === 's' ? 's' : ' reps'}` :
+                               history.trend === 'down' ? `${history.delta}${history.unit === 's' ? 's' : ' reps'}` :
+                               'Stable'}
+                            </span>
+                          )}
+                        </div>
+                        {history && <SessionHistory history={history} />}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-between gap-2 min-h-[24px]">
+                        <div>
+                          <span className={`text-sm ${
+                            logged ? 'text-foreground/70' :
+                            node.assisted ? 'text-muted-foreground/50 text-xs' :
+                            'text-muted-foreground'
+                          }`}>
+                            {node.name}
+                          </span>
+                          {node.assisted && node.notes && (
+                            <span className="text-[10px] text-muted-foreground/40 ml-1.5">{node.notes}</span>
+                          )}
+                        </div>
+                        {logged && history && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {history.sessions[history.sessions.length - 1].best !== null
+                              ? formatBest(history.sessions[history.sessions.length - 1].best!, history.unit!)
+                              : '✓'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
