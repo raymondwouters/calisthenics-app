@@ -85,15 +85,6 @@ function parseTargetReps(reps: string): number | null {
   return null
 }
 
-function isAtTarget(exercise: Exercise, logs: (SetLog | null)[]): boolean {
-  if (logs.length < exercise.sets) return false
-  if (logs.some(l => l === null)) return false
-  const target = parseTargetReps(exercise.reps)
-  if (target === null) {
-    return logs.every(l => l !== null && (l.reps !== undefined || l.duration_s !== undefined))
-  }
-  return logs.every(l => l !== null && l.reps !== undefined && l.reps >= target)
-}
 
 function estimateDuration(session: Session): number {
   let totalSeconds = 0
@@ -501,7 +492,6 @@ function ExerciseCard({
   }
 
   const timed = isTimed(exercise.reps)
-  const atTarget = isAtTarget(exercise, setLogs)
 
   useEffect(() => {
     if (timer.phase === 'running') {
@@ -636,7 +626,6 @@ function ExerciseCard({
         onReplace(data)
         setSetLogs(Array(data.sets).fill(null))
         closePanel()
-        onLogsChange([])
         if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
         setUndoCountdown(UNDO_SECONDS)
         let remaining = UNDO_SECONDS
@@ -668,7 +657,6 @@ function ExerciseCard({
     onUndone()
     onReplace(previousExercise)
     setSetLogs(Array(previousExercise.sets).fill(null))
-    onLogsChange([])
     setPreviousExercise(null)
   }
 
@@ -677,13 +665,10 @@ function ExerciseCard({
   const timerActive = timer.phase !== 'idle'
 
   return (
-    <div className={`bg-card rounded-xl p-4 flex flex-col gap-2 transition-all ${atTarget ? 'ring-1 ring-emerald-600/50 dark:ring-emerald-400/40' : ''}`}>
+    <div className="bg-card rounded-xl p-4 flex flex-col gap-2 transition-all">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <p className="font-semibold text-foreground leading-tight">{exercise.name}</p>
-          {atTarget && (
-            <span className="shrink-0 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-md font-medium">✓ Goal hit</span>
-          )}
         </div>
         <a
           href={youtubeUrl(exercise.name)}

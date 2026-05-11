@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
-import { SetLog, WeeklyFeedback } from '@/lib/types'
+import { SetLog, WeeklyFeedback, ProgressionLine } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ interface Session {
   unit: 'reps' | 's' | null
 }
 
-interface ExerciseProgression {
+interface ExerciseHistory {
   name: string
   sessions: Session[]
   trend: 'up' | 'stable' | 'down' | 'new'
@@ -61,7 +61,7 @@ function weekLabel(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
-function buildProgressions(rows: LogRow[]): ExerciseProgression[] {
+function buildHistoryMap(rows: LogRow[]): Map<string, ExerciseHistory> {
   const byExercise = new Map<string, Map<string, LogRow>>()
 
   for (const row of rows) {
@@ -71,102 +71,67 @@ function buildProgressions(rows: LogRow[]): ExerciseProgression[] {
     if (!dateMap.has(dateKey)) dateMap.set(dateKey, row)
   }
 
-  const progressions: ExerciseProgression[] = []
+  const result = new Map<string, ExerciseHistory>()
 
   byExercise.forEach((dateMap, name) => {
     const sessions: Session[] = Array.from(dateMap.entries())
       .map(([dateKey, row]) => {
         const best = getBest(row.sets_data)
-        return {
-          date: new Date(row.logged_at),
-          dateKey,
-          sets: row.sets_data,
-          best: best?.value ?? null,
-          unit: best?.unit ?? null,
-        }
+        return { date: new Date(row.logged_at), dateKey, sets: row.sets_data, best: best?.value ?? null, unit: best?.unit ?? null }
       })
       .sort((a, b) => a.date.getTime() - b.date.getTime())
 
     const last = sessions[sessions.length - 1]
     const prev = sessions[sessions.length - 2]
-
-    let trend: ExerciseProgression['trend'] = 'new'
+    let trend: ExerciseHistory['trend'] = 'new'
     let delta: number | null = null
-
     if (prev && last.best !== null && prev.best !== null) {
       delta = last.best - prev.best
       trend = delta > 0 ? 'up' : delta < 0 ? 'down' : 'stable'
     }
-
-    progressions.push({ name, sessions, trend, delta, unit: last.unit })
+    result.set(name, { name, sessions, trend, delta, unit: last.unit })
   })
 
-  const order = { up: 0, stable: 1, new: 2, down: 3 }
-  progressions.sort((a, b) => order[a.trend] - order[b.trend])
-
-  return progressions
+  return result
 }
 
-// ─── Components ───────────────────────────────────────────────────────────────
+// ─── Progression chain node ───────────────────────────────────────────────────
 
-function TrendBadge({ trend, delta, unit }: Pick<ExerciseProgression, 'trend' | 'delta' | 'unit'>) {
-  if (trend === 'new') {
-    return <span className="text-xs text-muted-foreground">First session</span>
-  }
-  if (trend === 'up') {
-    const label = delta !== null ? `+${delta}${unit === 's' ? 's' : ' reps'}` : '↑'
-    return (
-      <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-600/10 px-2 py-0.5 rounded-full">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-        </svg>
-        {label}
-      </span>
-    )
-  }
-  if (trend === 'down') {
-    const label = delta !== null ? `${delta}${unit === 's' ? 's' : ' reps'}` : '↓'
-    return (
-      <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-        {label}
-      </span>
-    )
-  }
-  return (
-    <span className="text-xs font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-      → Same
-    </span>
-  )
-}
+function NodePopover({
+  history,
+  onClose,
+}: {
+  history: ExerciseHistory
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const recent = history.sessions.slice(-5)
 
-function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
-  const last = ex.sessions[ex.sessions.length - 1]
-  const recent = ex.sessions.slice(-5)
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [onClose])
 
   return (
-    <div className={`bg-card rounded-xl p-4 border ${ex.trend === 'up' ? 'border-emerald-500/30' : 'border-border'}`}>
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <p className="text-sm font-semibold text-foreground leading-snug">{ex.name}</p>
-        <TrendBadge trend={ex.trend} delta={ex.delta} unit={ex.unit} />
-      </div>
+    <div
+      ref={ref}
+      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-20 w-56 bg-card border border-border rounded-xl shadow-lg p-3"
+    >
+      <p className="text-xs font-semibold text-foreground mb-2">{history.name}</p>
 
-      <p className="text-xs text-muted-foreground mb-3">
-        {shortDate(last.date)} · <span className="text-foreground/80">{formatSets(last.sets)}</span>
-      </p>
-
-      {recent.length > 1 && (
-        <div className="flex gap-1.5 flex-wrap">
+      {recent.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap mb-2">
           {recent.map((s, i) => {
             const isLatest = i === recent.length - 1
-            const prevSession = i > 0 ? recent[i - 1] : null
-            const improved = prevSession && s.best !== null && prevSession.best !== null && s.best > prevSession.best
+            const prev = i > 0 ? recent[i - 1] : null
+            const improved = prev && s.best !== null && prev.best !== null && s.best > prev.best
             return (
               <div
                 key={s.dateKey}
-                className={`flex flex-col items-center px-2 py-1.5 rounded-lg min-w-[44px] ${
+                className={`flex flex-col items-center px-2 py-1.5 rounded-lg min-w-[40px] ${
                   isLatest
                     ? improved ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-secondary border border-border'
                     : 'bg-secondary/60'
@@ -181,9 +146,133 @@ function ExerciseCard({ ex }: { ex: ExerciseProgression }) {
           })}
         </div>
       )}
+
+      <p className="text-xs text-muted-foreground">{formatSets(recent[recent.length - 1].sets)}</p>
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-border" />
     </div>
   )
 }
+
+interface ChainNodeProps {
+  name: string
+  assisted: boolean
+  notes?: string
+  history: ExerciseHistory | undefined
+}
+
+function ChainNode({ name, assisted, notes, history }: ChainNodeProps) {
+  const [open, setOpen] = useState(false)
+  const logged = !!history
+
+  const dotBase = 'relative flex flex-col items-center gap-1.5 cursor-default'
+  const circleBase = 'rounded-full flex items-center justify-center transition-all'
+
+  let circleClass: string
+  let labelClass: string
+
+  if (logged && history!.trend === 'up') {
+    circleClass = `w-8 h-8 ${circleBase} bg-emerald-500 shadow-sm shadow-emerald-500/30 cursor-pointer`
+    labelClass = 'text-[10px] font-semibold text-emerald-600 text-center leading-tight'
+  } else if (logged) {
+    circleClass = `w-8 h-8 ${circleBase} bg-primary cursor-pointer`
+    labelClass = 'text-[10px] font-medium text-foreground text-center leading-tight'
+  } else if (assisted) {
+    circleClass = `w-6 h-6 ${circleBase} border-2 border-dashed border-border bg-background`
+    labelClass = 'text-[9px] text-muted-foreground/60 text-center leading-tight'
+  } else {
+    circleClass = `w-7 h-7 ${circleBase} border-2 border-border bg-background`
+    labelClass = 'text-[10px] text-muted-foreground text-center leading-tight'
+  }
+
+  return (
+    <div className={dotBase}>
+      <div className="relative">
+        <button
+          className={circleClass}
+          onClick={() => logged && setOpen(o => !o)}
+          aria-label={name}
+        >
+          {logged && (
+            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          {!logged && assisted && (
+            <span className="text-[9px] text-muted-foreground/50">+</span>
+          )}
+        </button>
+        {open && history && (
+          <NodePopover history={history} onClose={() => setOpen(false)} />
+        )}
+      </div>
+
+      <span className={labelClass} style={{ maxWidth: 64 }}>{name}</span>
+
+      {assisted && notes && (
+        <span className="text-[8px] text-muted-foreground/50 text-center leading-tight" style={{ maxWidth: 64 }}>{notes}</span>
+      )}
+    </div>
+  )
+}
+
+// ─── Full progression line row ─────────────────────────────────────────────────
+
+function ProgressionLineRow({
+  line,
+  historyMap,
+}: {
+  line: ProgressionLine
+  historyMap: Map<string, ExerciseHistory>
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Find the rightmost logged node index for initial scroll position
+  const lastLoggedIndex = line.nodes.reduce((acc, node, i) => historyMap.has(node.name) ? i : acc, -1)
+
+  useEffect(() => {
+    if (scrollRef.current && lastLoggedIndex > 3) {
+      const nodeWidth = 96 // approximate px per node
+      scrollRef.current.scrollLeft = Math.max(0, (lastLoggedIndex - 2) * nodeWidth)
+    }
+  }, [lastLoggedIndex])
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-4">{line.family}</p>
+
+      <div ref={scrollRef} className="overflow-x-auto pb-2 -mx-1 px-1">
+        <div className="flex items-start gap-0 min-w-max">
+          {line.nodes.map((node, i) => {
+            const isLast = i === line.nodes.length - 1
+            const history = historyMap.get(node.name)
+            const nextLogged = !isLast && historyMap.has(line.nodes[i + 1].name)
+            const currentLogged = !!history
+
+            return (
+              <div key={node.name} className="flex items-center">
+                <ChainNode
+                  name={node.name}
+                  assisted={node.assisted}
+                  notes={node.notes}
+                  history={history}
+                />
+                {!isLast && (
+                  <div className={`h-px w-6 shrink-0 mt-[-20px] ${
+                    currentLogged && nextLogged
+                      ? 'bg-primary'
+                      : 'bg-border'
+                  }`} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Weekly feedback card ──────────────────────────────────────────────────────
 
 function toExStr(item: unknown): string {
   if (typeof item === 'string') return item
@@ -200,7 +289,6 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Plan decision */}
       <div className="bg-card border border-border rounded-2xl p-5">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">
@@ -234,7 +322,6 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
         )}
       </div>
 
-      {/* Analysis */}
       <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
         {readyToProgress.length > 0 && (
           <div>
@@ -265,7 +352,13 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
               {fb.analysis.plateaued.map(p => (
                 <div key={p.exercise} className="flex items-start gap-2">
                   <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
-                  <span className="text-xs text-muted-foreground pt-1">{p.recommendation}</span>
+                  <span className="text-xs text-muted-foreground pt-1">
+                    {p.plateau_strategy.action === 'increase_volume' && `Increase to ${p.plateau_strategy.target_sets} sets × ${p.plateau_strategy.target_reps}`}
+                    {p.plateau_strategy.action === 'change_tempo' && `Slow the tempo: ${p.plateau_strategy.tempo}`}
+                    {p.plateau_strategy.action === 'add_pause' && `Add ${p.plateau_strategy.pause_seconds}s pause at hardest point`}
+                    {p.plateau_strategy.action === 'regress_and_rebuild' && `Regress — ${p.plateau_strategy.reason}`}
+                    {p.plateau_strategy.action === 'deload' && `Deload for ${p.plateau_strategy.duration_weeks} week`}
+                  </span>
                 </div>
               ))}
             </div>
@@ -297,7 +390,9 @@ type Tab = 'exercises' | 'weekly'
 export default function ProgressionPage() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('exercises')
-  const [progressions, setProgressions] = useState<ExerciseProgression[]>([])
+  const [historyMap, setHistoryMap] = useState<Map<string, ExerciseHistory>>(new Map())
+  const [progressionLines, setProgressionLines] = useState<ProgressionLine[]>([])
+  const [linesLoading, setLinesLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
 
@@ -323,7 +418,25 @@ export default function ProgressionPage() {
       ])
 
       if (logsResult.data && logsResult.data.length > 0) {
-        setProgressions(buildProgressions(logsResult.data as LogRow[]))
+        const map = buildHistoryMap(logsResult.data as LogRow[])
+        setHistoryMap(map)
+
+        // Fetch progression lines for the unique exercises seen
+        const uniqueNames = Array.from(map.keys())
+        setLinesLoading(true)
+        try {
+          const res = await fetch('/api/progression-lines', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exerciseNames: uniqueNames }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            setProgressionLines(data.lines ?? [])
+          }
+        } finally {
+          setLinesLoading(false)
+        }
       }
 
       if (feedbackResult.data && feedbackResult.data.length > 0) {
@@ -345,9 +458,6 @@ export default function ProgressionPage() {
       </main>
     )
   }
-
-  const improving = progressions.filter(p => p.trend === 'up')
-  const rest = progressions.filter(p => p.trend !== 'up')
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -391,38 +501,27 @@ export default function ProgressionPage() {
 
         {/* ─── Exercises tab ─── */}
         {tab === 'exercises' && (
-          progressions.length === 0 ? (
+          historyMap.size === 0 ? (
             <div className="text-center py-16">
               <p className="text-muted-foreground text-sm">No sessions logged yet.</p>
               <p className="text-muted-foreground/70 text-xs mt-1">Accept your plan and start logging sets to track your progression.</p>
             </div>
+          ) : linesLoading ? (
+            <div className="flex justify-center py-16">
+              <svg className="animate-spin w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            </div>
+          ) : progressionLines.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground text-sm">Could not load progression lines.</p>
+            </div>
           ) : (
-            <div className="flex flex-col gap-8">
-              {improving.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <p className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">Getting stronger</p>
-                    <div className="flex-1 h-px bg-border" />
-                    <span className="text-xs text-muted-foreground">{improving.length} exercise{improving.length !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {improving.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
-                  </div>
-                </div>
-              )}
-
-              {rest.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">All exercises</p>
-                    <div className="flex-1 h-px bg-border" />
-                    <span className="text-xs text-muted-foreground">{rest.length}</span>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {rest.map(ex => <ExerciseCard key={ex.name} ex={ex} />)}
-                  </div>
-                </div>
-              )}
+            <div className="flex flex-col gap-10">
+              {progressionLines.map(line => (
+                <ProgressionLineRow key={line.family} line={line} historyMap={historyMap} />
+              ))}
             </div>
           )
         )}

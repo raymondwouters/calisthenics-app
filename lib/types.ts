@@ -49,12 +49,13 @@ export interface ExerciseLog {
   setsData: SetLog[]
 }
 
-export interface FeedbackPlanRequest {
-  currentPlan: WorkoutPlan
-  inputs: GenerateRequest
-  logs: ExerciseLog[]
-  feedback: string
-}
+
+export type PlateauStrategy =
+  | { action: 'increase_volume'; target_sets: number; target_reps: string }
+  | { action: 'change_tempo'; tempo: string }
+  | { action: 'add_pause'; pause_seconds: number }
+  | { action: 'regress_and_rebuild'; reason: string }
+  | { action: 'deload'; duration_weeks: 1 }
 
 export interface ProgressionAnalysis {
   ready_to_progress: string[]
@@ -62,7 +63,7 @@ export interface ProgressionAnalysis {
   plateaued: Array<{
     exercise: string
     sessions_stable: number
-    recommendation: string
+    plateau_strategy: PlateauStrategy
   }>
   insights: string[]
 }
@@ -80,6 +81,21 @@ export interface NextWeekPlanResponse {
   changes?: Array<{ exercise: string; from: string; to: string }>
   plan?: WorkoutPlan
   planId?: string
+}
+
+export interface ProgressionNode {
+  name: string
+  assisted: boolean       // true for band-assisted, jumping, negative variants not in the main line
+  notes?: string          // e.g. "use resistance band", "from a box"
+}
+
+export interface ProgressionLine {
+  family: string          // e.g. "Horizontal Push", "Vertical Pull"
+  nodes: ProgressionNode[]
+}
+
+export interface ProgressionLinesResponse {
+  lines: ProgressionLine[]
 }
 
 export interface WeeklyFeedback {

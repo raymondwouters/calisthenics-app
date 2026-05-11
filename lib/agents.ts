@@ -131,7 +131,16 @@ ${JSON.stringify(currentPlan, null, 2)}
 Progression analysis:
 - Ready to progress: ${analysis.ready_to_progress.join(', ') || 'none'}
 - Needs regression: ${analysis.needs_regression.join(', ') || 'none'}
-- Plateaued: ${analysis.plateaued.map(p => `${p.exercise} (${p.sessions_stable} sessions stable — ${p.recommendation})`).join(', ') || 'none'}
+- Plateaued: ${analysis.plateaued.map(p => {
+    const s = p.plateau_strategy
+    let instruction: string
+    if (s.action === 'increase_volume') instruction = `increase to ${s.target_sets} sets × ${s.target_reps}`
+    else if (s.action === 'change_tempo') instruction = `apply ${s.tempo} tempo`
+    else if (s.action === 'add_pause') instruction = `add ${s.pause_seconds}s pause at hardest point`
+    else if (s.action === 'regress_and_rebuild') instruction = `regress — ${s.reason}`
+    else instruction = `deload for ${s.duration_weeks} week`
+    return `${p.exercise} (${p.sessions_stable} sessions stable — apply: ${instruction})`
+  }).join(', ') || 'none'}
 - Key insights: ${analysis.insights.join('; ')}
 
 Decision rules:
