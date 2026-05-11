@@ -1323,6 +1323,7 @@ export default function PlanPage() {
   const [weekFinishAnalysis, setWeekFinishAnalysis] = useState<ProgressionAnalysis | null>(null)
   const [weekOffset, setWeekOffset] = useState(0)
   const [weekLogsMap, setWeekLogsMap] = useState<Map<number, Map<string, Map<string, SetLog[]>>>>(new Map())
+  const [weekSessionsMap, setWeekSessionsMap] = useState<Map<string, Session[]>>(new Map())
   const [weekIsFinished, setWeekIsFinished] = useState(false)
 
   const planRef = useRef(plan)
@@ -1546,6 +1547,36 @@ export default function PlanPage() {
               .limit(1)
               .maybeSingle()
 
+            // Load all per-week session snapshots so historical weeks show the correct exercises
+            const currWeekMondayStr = currWeekMonday.toISOString().split('T')[0]
+            const { data: snapshotsData } = await supabase
+              .from('plan_week_snapshots')
+              .select('week_monday, sessions')
+              .eq('user_id', user.id)
+              .order('week_monday', { ascending: false })
+
+            const snapshotsMap = new Map<string, Session[]>()
+            if (snapshotsData) {
+              for (const row of snapshotsData) {
+                snapshotsMap.set(row.week_monday, row.sessions as Session[])
+              }
+            }
+
+            // Snapshot the current week's sessions on first load this week (ignoreDuplicates
+            // means it never overwrites, so exercises are frozen at the start of each week)
+            if (!snapshotsMap.has(currWeekMondayStr)) {
+              const currentSessions = (planRow.plan as PlanResponse).plan.sessions
+              supabase.from('plan_week_snapshots').upsert(
+                { user_id: user.id, week_monday: currWeekMondayStr, sessions: currentSessions },
+                { onConflict: 'user_id,week_monday', ignoreDuplicates: true }
+              ).then(({ error }) => {
+                if (error) console.error('Snapshot save error:', error.message)
+              })
+              snapshotsMap.set(currWeekMondayStr, currentSessions)
+            }
+
+            setWeekSessionsMap(snapshotsMap)
+
             // Set plan + logs together so ExerciseCards mount with correct initialLogs
             loadedSessionsRef.current = (planRow.plan as PlanResponse).plan.sessions
             setPlan(planRow.plan as PlanResponse)
@@ -1765,9 +1796,17 @@ export default function PlanPage() {
   const { level, goal, days_per_week, sessions } = plan.plan
   const equipment = inputs?.equipment ?? []
 
-  // When viewing a previous week, show that week's exercises (different plan version).
-  // Fall back to the load-time snapshot so in-session adjustments don't bleed through.
-  const prevSessions = prevPlan?.plan.sessions ?? loadedSessionsRef.current ?? sessions
+  // When viewing a previous week, look up the per-week session snapshot first, then fall
+  // back to prevPlan, then the load-time ref so in-session adjustments never bleed through.
+  const viewingWeekMondayStr = weekOffset >= 1 && planCreatedAt
+    ? new Date(getUserWeekInfo(planCreatedAt).start.getTime() - weekOffset * 7 * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0]
+    : null
+  const prevSessions =
+    (viewingWeekMondayStr ? weekSessionsMap.get(viewingWeekMondayStr) : undefined)
+    ?? prevPlan?.plan.sessions
+    ?? loadedSessionsRef.current
+    ?? sessions
   const activeSession: Session = weekOffset >= 1
     ? (prevSessions.find(s => s.day === sessions[activeDay]?.day) ?? prevSessions[activeDay] ?? sessions[activeDay] ?? sessions[0])
     : (sessions[activeDay] ?? sessions[0])
