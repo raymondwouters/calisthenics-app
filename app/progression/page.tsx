@@ -187,7 +187,7 @@ function ProgressionLineRow({
                 }
 
                 return (
-                  <div key={node.name} className={`flex items-start gap-3 py-2 ${isCurrent ? 'relative' : ''}`}>
+                  <div key={node.name} className={`flex items-start gap-3 py-2 bg-card relative`}>
                     {/* Dot */}
                     <div className={dotClass}>
                       {(isCurrent || isPast) && (
