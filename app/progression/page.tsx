@@ -385,11 +385,11 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'exercises' | 'weekly'
+type Tab = 'skills' | 'weekly'
 
 export default function ProgressionPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('exercises')
+  const [tab, setTab] = useState<Tab>('skills')
   const [historyMap, setHistoryMap] = useState<Map<string, ExerciseHistory>>(new Map())
   const [progressionLines, setProgressionLines] = useState<ProgressionLine[]>([])
   const [linesLoading, setLinesLoading] = useState(false)
@@ -421,21 +421,29 @@ export default function ProgressionPage() {
         const map = buildHistoryMap(logsResult.data as LogRow[])
         setHistoryMap(map)
 
-        // Fetch progression lines for the unique exercises seen
-        const uniqueNames = Array.from(map.keys())
-        setLinesLoading(true)
-        try {
-          const res = await fetch('/api/progression-lines', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ exerciseNames: uniqueNames }),
-          })
-          if (res.ok) {
-            const data = await res.json()
-            setProgressionLines(data.lines ?? [])
+        // Fetch progression lines, using sessionStorage as cache keyed on sorted exercise names
+        const uniqueNames = Array.from(map.keys()).sort()
+        const cacheKey = `progression-lines:${uniqueNames.join(',')}`
+        const cached = sessionStorage.getItem(cacheKey)
+        if (cached) {
+          setProgressionLines(JSON.parse(cached))
+        } else {
+          setLinesLoading(true)
+          try {
+            const res = await fetch('/api/progression-lines', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ exerciseNames: uniqueNames }),
+            })
+            if (res.ok) {
+              const data = await res.json()
+              const lines = data.lines ?? []
+              setProgressionLines(lines)
+              sessionStorage.setItem(cacheKey, JSON.stringify(lines))
+            }
+          } finally {
+            setLinesLoading(false)
           }
-        } finally {
-          setLinesLoading(false)
         }
       }
 
@@ -471,14 +479,14 @@ export default function ProgressionPage() {
         {/* Tabs */}
         <div className="flex gap-1 bg-secondary rounded-xl p-1 mb-8">
           <button
-            onClick={() => setTab('exercises')}
+            onClick={() => setTab('skills')}
             className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${
-              tab === 'exercises'
+              tab === 'skills'
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Exercises
+            Skills
           </button>
           <button
             onClick={() => setTab('weekly')}
@@ -499,8 +507,8 @@ export default function ProgressionPage() {
           </button>
         </div>
 
-        {/* ─── Exercises tab ─── */}
-        {tab === 'exercises' && (
+        {/* ─── Skills tab ─── */}
+        {tab === 'skills' && (
           historyMap.size === 0 ? (
             <div className="text-center py-16">
               <p className="text-muted-foreground text-sm">No sessions logged yet.</p>
