@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
@@ -75,6 +75,10 @@ function youtubeUrl(exerciseName: string) {
 
 function isTimed(reps: string) {
   return /\d+\s*(s|sec|seconds?)\b/i.test(reps)
+}
+
+function eachSide(reps: string) {
+  return /each side/i.test(reps)
 }
 
 function parseTargetReps(reps: string): number | null {
@@ -427,20 +431,25 @@ function ExerciseCard({
   const [undoCountdown, setUndoCountdown] = useState<number | null>(null)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const isEachSide = eachSide(exercise.reps)
+  const totalSlots = isEachSide ? exercise.sets * 2 : exercise.sets
+
   const [setLogs, setSetLogs] = useState<(SetLog | null)[]>(() => {
-    const arr: (SetLog | null)[] = Array(exercise.sets).fill(null)
-    initialLogs.forEach((log, i) => { if (i < exercise.sets) arr[i] = log })
+    const arr: (SetLog | null)[] = Array(totalSlots).fill(null)
+    initialLogs.forEach((log, i) => { if (i < totalSlots) arr[i] = log })
     return arr
   })
 
-  // Sync setLogs when initialLogs or exercise.sets changes (handles DB load completing after mount)
+  // Sync setLogs when initialLogs or exercise changes (handles DB load completing after mount)
   useEffect(() => {
+    const each = eachSide(exercise.reps)
+    const slots = each ? exercise.sets * 2 : exercise.sets
     setSetLogs(() => {
-      const arr: (SetLog | null)[] = Array(exercise.sets).fill(null)
-      initialLogs.forEach((log, i) => { if (i < exercise.sets) arr[i] = log })
+      const arr: (SetLog | null)[] = Array(slots).fill(null)
+      initialLogs.forEach((log, i) => { if (i < slots) arr[i] = log })
       return arr
     })
-  }, [initialLogs, exercise.sets])
+  }, [initialLogs, exercise.sets, exercise.reps])
 
   const [selectedSetIndex, setSelectedSetIndex] = useState<number | null>(null)
   const [showManual, setShowManual] = useState(false)
@@ -518,11 +527,10 @@ function ExerciseCard({
     return () => clearTimeout(t)
   }, [timer])
 
-  useEffect(() => {
-    if (selectedSetIndex !== null && (!timed || showManual)) {
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
-  }, [selectedSetIndex, showManual, timed])
+  const focusRef = useCallback((el: HTMLInputElement | null) => {
+    inputRef.current = el
+    el?.focus()
+  }, [])
 
   function openSet(i: number) {
     if (timerActive) return
@@ -625,7 +633,8 @@ function ExerciseCard({
       } else {
         setPreviousExercise(exercise)   // save before replacing
         onReplace(data)
-        setSetLogs(Array(data.sets).fill(null))
+        const newSlots = eachSide(data.reps) ? data.sets * 2 : data.sets
+        setSetLogs(Array(newSlots).fill(null))
         closePanel()
         if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
         setUndoCountdown(UNDO_SECONDS)
@@ -657,13 +666,23 @@ function ExerciseCard({
     setUndoCountdown(null)
     onUndone()
     onReplace(previousExercise)
-    setSetLogs(Array(previousExercise.sets).fill(null))
+    const prevSlots = eachSide(previousExercise.reps) ? previousExercise.sets * 2 : previousExercise.sets
+    setSetLogs(Array(prevSlots).fill(null))
     setPreviousExercise(null)
   }
 
   const activeTimerSet = (timer.phase === 'countdown' || timer.phase === 'running' || timer.phase === 'logged')
     ? timer.setIndex : -1
   const timerActive = timer.phase !== 'idle'
+
+  const panelIdx: number = selectedSetIndex !== null
+    ? selectedSetIndex
+    : (timer.phase === 'countdown' || timer.phase === 'running' || timer.phase === 'logged')
+      ? timer.setIndex
+      : 0
+  const panelSetNum = isEachSide ? Math.floor(panelIdx / 2) + 1 : panelIdx + 1
+  const panelSide = isEachSide ? ` · ${panelIdx % 2 === 0 ? 'Left' : 'Right'}` : ''
+  const panelTitle = `Set ${panelSetNum}${panelSide}`
 
   return (
     <div className="bg-card rounded-xl p-4 flex flex-col gap-2 transition-all">
@@ -703,26 +722,32 @@ function ExerciseCard({
 
       {/* Read-only set display — shown in preview mode when logs exist */}
       {isPreview && setLogs.some(l => l !== null) && (
-        <div className="grid gap-2 pt-1" style={{ gridTemplateColumns: `repeat(${exercise.sets}, 1fr)` }}>
-          {setLogs.map((log, i) => (
-            <div
-              key={i}
-              className={`rounded-xl border py-2 ${
-                log !== null
-                  ? 'bg-primary border-primary text-primary-foreground'
-                  : 'border-border bg-card text-muted-foreground'
-              }`}
-            >
-              {log !== null ? (
-                <div className="flex flex-col items-center leading-none gap-0.5">
-                  <span className="text-[10px] font-semibold uppercase opacity-70">S{i + 1}</span>
-                  <span className="text-sm font-bold">{setLogDisplay(log)}</span>
-                </div>
-              ) : (
-                <span className="text-sm font-semibold text-center block">Set {i + 1}</span>
-              )}
-            </div>
-          ))}
+        <div className="grid gap-2 pt-1" style={{ gridTemplateColumns: isEachSide ? 'repeat(2, 1fr)' : `repeat(${exercise.sets}, 1fr)` }}>
+          {setLogs.map((log, i) => {
+            const shortLabel = isEachSide
+              ? (exercise.sets > 1 ? `S${Math.floor(i / 2) + 1}·${i % 2 === 0 ? 'L' : 'R'}` : (i % 2 === 0 ? 'L' : 'R'))
+              : `S${i + 1}`
+            const emptyLabel = isEachSide ? (i % 2 === 0 ? 'Left' : 'Right') : `Set ${i + 1}`
+            return (
+              <div
+                key={i}
+                className={`rounded-xl border py-2 ${
+                  log !== null
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'border-border bg-card text-muted-foreground'
+                }`}
+              >
+                {log !== null ? (
+                  <div className="flex flex-col items-center leading-none gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase opacity-70">{shortLabel}</span>
+                    <span className="text-sm font-bold">{setLogDisplay(log)}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-center block">{emptyLabel}</span>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -731,12 +756,16 @@ function ExerciseCard({
         <div className="flex flex-col gap-2 pt-1">
 
           {/* Set buttons row */}
-          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${exercise.sets}, 1fr)` }}>
-            {Array.from({ length: exercise.sets }).map((_, i) => {
+          <div className="grid gap-2" style={{ gridTemplateColumns: isEachSide ? 'repeat(2, 1fr)' : `repeat(${exercise.sets}, 1fr)` }}>
+            {Array.from({ length: totalSlots }).map((_, i) => {
               const isRunningThis = activeTimerSet === i
               const isSelected = selectedSetIndex === i && !timerActive
               const log = setLogs[i] ?? null
               const isDone = log !== null
+              const shortLabel = isEachSide
+                ? (exercise.sets > 1 ? `S${Math.floor(i / 2) + 1}·${i % 2 === 0 ? 'L' : 'R'}` : (i % 2 === 0 ? 'L' : 'R'))
+                : `S${i + 1}`
+              const emptyLabel = isEachSide ? (i % 2 === 0 ? 'Left' : 'Right') : `Set ${i + 1}`
               return (
                 <button
                   key={i}
@@ -754,13 +783,13 @@ function ExerciseCard({
                 >
                   {isDone || isRunningThis ? (
                     <div className="flex flex-col items-center leading-none gap-0.5">
-                      <span className="text-[10px] font-semibold uppercase opacity-70">S{i + 1}</span>
+                      <span className="text-[10px] font-semibold uppercase opacity-70">{shortLabel}</span>
                       <span className="text-sm font-bold">
                         {isRunningThis ? `${elapsed}s` : setLogDisplay(log!)}
                       </span>
                     </div>
                   ) : (
-                    <span className="text-sm font-semibold">Set {i + 1}</span>
+                    <span className="text-sm font-semibold">{emptyLabel}</span>
                   )}
                 </button>
               )
@@ -775,7 +804,7 @@ function ExerciseCard({
               {timer.phase === 'idle' && timed && !showManual && (
                 <>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">
-                    Set {(selectedSetIndex ?? 0) + 1} · Target: {exercise.reps}
+                    {panelTitle} · Target: {exercise.reps}
                   </p>
                   {setLogs[selectedSetIndex!] !== null ? (
                     <div className="flex gap-3">
@@ -818,11 +847,11 @@ function ExerciseCard({
               {timer.phase === 'idle' && timed && showManual && (
                 <>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">
-                    Set {(selectedSetIndex ?? 0) + 1} · Target: {exercise.reps}
+                    {panelTitle} · Target: {exercise.reps}
                   </p>
                   <div className="flex items-center gap-3">
                     <input
-                      ref={inputRef}
+                      ref={focusRef}
                       type="number"
                       min={0}
                       max={9999}
@@ -849,11 +878,11 @@ function ExerciseCard({
               {timer.phase === 'idle' && !timed && (
                 <>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">
-                    Set {(selectedSetIndex ?? 0) + 1}
+                    {panelTitle}
                   </p>
                   <div className="flex items-center gap-2">
                     <input
-                      ref={inputRef}
+                      ref={focusRef}
                       type="number"
                       min={0}
                       max={999}
