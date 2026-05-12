@@ -454,7 +454,6 @@ function ExerciseCard({
   useEffect(() => {
     return () => {
       if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
-      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
   }, [])
 
@@ -1797,7 +1796,9 @@ export default function PlanPage() {
     : (sessions[activeDay] ?? sessions[0])
   const isRestDay = activeSession.type === 'rest'
 
-  const displayLogs = weekLogsMap.get(weekOffset) ?? new Map<string, Map<string, SetLog[]>>()
+  const displayLogs = weekOffset === 0
+    ? allLogs
+    : (weekLogsMap.get(weekOffset) ?? new Map<string, Map<string, SetLog[]>>())
   const logsForActiveDay = displayLogs.get(activeSession.day) ?? new Map<string, SetLog[]>()
   const prevLogsForActiveDay = (weekLogsMap.get(weekOffset + 1) ?? new Map<string, Map<string, SetLog[]>>()).get(activeSession.day) ?? new Map<string, SetLog[]>()
 
