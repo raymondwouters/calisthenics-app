@@ -164,42 +164,42 @@ function ProgressionLineRow({
       {/* Accordion body */}
       {open && (
         <div className="px-4 pt-2 pb-4 bg-card border-t border-border">
-          <div className="relative">
-            {/* Vertical connecting line */}
-            <div className="absolute left-[11px] top-3 bottom-3 w-px bg-border" />
-
-            <div className="flex flex-col gap-0">
+          <div className="flex flex-col">
               {line.nodes.map((node, i) => {
                 const history = historyMap.get(node.name)
                 const logged = !!history
                 const isCurrent = i === lastLoggedIndex
                 const isPast = i < lastLoggedIndex
+                const isLast = i === line.nodes.length - 1
 
                 let dotClass: string
                 if (isCurrent) {
-                  dotClass = 'w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 relative z-10'
+                  dotClass = 'w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0'
                 } else if (isPast) {
-                  dotClass = 'w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center shrink-0 relative z-10'
+                  dotClass = 'w-6 h-6 rounded-full bg-primary/40 flex items-center justify-center shrink-0'
                 } else if (node.assisted) {
-                  dotClass = 'w-4 h-4 rounded-full border border-dashed border-border bg-background mx-1 shrink-0 relative z-10'
+                  dotClass = 'w-4 h-4 rounded-full border border-dashed border-border bg-card mx-1 shrink-0'
                 } else {
-                  dotClass = 'w-6 h-6 rounded-full border-2 border-border bg-background flex items-center justify-center shrink-0 relative z-10'
+                  dotClass = 'w-6 h-6 rounded-full border-2 border-border bg-card flex items-center justify-center shrink-0'
                 }
 
                 return (
-                  <div key={node.name} className={`flex items-start gap-3 py-2 bg-card relative`}>
-                    {/* Dot */}
-                    <div className={dotClass}>
-                      {(isCurrent || isPast) && (
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
+                  <div key={node.name} className="flex gap-3">
+                    {/* Left column: dot + connector line */}
+                    <div className="flex flex-col items-center w-6 shrink-0">
+                      <div className={dotClass}>
+                        {(isCurrent || isPast) && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      {!isLast && <div className="w-px flex-1 bg-border min-h-[12px]" />}
                     </div>
 
                     {/* Row content */}
                     {isCurrent ? (
-                      <div className="flex-1 bg-secondary rounded-xl px-3 py-2.5 -mt-1">
+                      <div className="flex-1 bg-secondary rounded-xl px-3 py-2.5 -mt-1 mb-3">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-semibold text-foreground">{node.name}</span>
                           {history && (
@@ -217,7 +217,7 @@ function ProgressionLineRow({
                         {history && <SessionHistory history={history} />}
                       </div>
                     ) : (
-                      <div className="flex-1 flex items-center justify-between gap-2 min-h-[24px]">
+                      <div className="flex-1 flex items-center justify-between gap-2 min-h-[24px] pb-3">
                         <div>
                           <span className={`text-sm ${
                             logged ? 'text-foreground/70' :
@@ -242,7 +242,6 @@ function ProgressionLineRow({
                   </div>
                 )
               })}
-            </div>
           </div>
         </div>
       )}
