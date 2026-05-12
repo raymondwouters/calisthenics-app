@@ -34,6 +34,7 @@ export interface GenerateRequest {
   equipment: string[]
   daysPerWeek: number
   goal: string
+  skills?: string[]
   changes?: string
 }
 

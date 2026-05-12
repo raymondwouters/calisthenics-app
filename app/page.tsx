@@ -14,6 +14,8 @@ const EQUIPMENT = [
   { id: 'resistance bands', label: 'Resistance bands' },
   { id: 'rings', label: 'Rings' },
   { id: 'parallettes', label: 'Parallettes' },
+  { id: 'bench (flat)', label: 'Flat bench' },
+  { id: 'bench (adjustable)', label: 'Bench (adjustable / multi-angle)' },
   { id: 'barbell & plates', label: 'Barbell & plates' },
   { id: 'full gym access', label: 'Full gym access' },
 ]
@@ -21,10 +23,21 @@ const EQUIPMENT = [
 const DAYS = [2, 3, 4, 5, 6]
 
 const GOALS = [
-  { id: 'General fitness', label: 'General fitness', desc: 'Stay active and build a solid base' },
-  { id: 'Build strength', label: 'Build strength', desc: 'Get stronger in key movements' },
-  { id: 'Learn skills', label: 'Learn skills', desc: 'Handstands, levers, muscle-ups' },
-  { id: 'Muscle gain', label: 'Muscle gain', desc: 'Build muscle through bodyweight' },
+  { id: 'calisthenics-foundation', label: 'Build a calisthenics foundation', desc: 'Beginner / early intermediate', requiresSkills: false },
+  { id: 'skill-progression', label: 'Improve skill progression', desc: 'Intermediate / advanced — pick your target skills', requiresSkills: true },
+  { id: 'general-strength', label: 'General strength building', desc: 'Compound movements + progressive overload', requiresSkills: false },
+  { id: 'lose-weight', label: 'Lose weight, maintain muscle', desc: 'Higher volume, conditioning, calorie burn', requiresSkills: false },
+]
+
+const SKILL_OPTIONS = [
+  'Handstand',
+  'Handstand push-up',
+  'Planche',
+  'Front lever',
+  'Back lever',
+  'Muscle-up',
+  'L-sit / V-sit',
+  'One-arm pull-up',
 ]
 
 function HomeContent() {
@@ -37,6 +50,7 @@ function HomeContent() {
   const [equipment, setEquipment] = useState<string[]>(['floor'])
   const [days, setDays] = useState(3)
   const [goal, setGoal] = useState('')
+  const [skills, setSkills] = useState<string[]>([])
 
   useEffect(() => {
     const isNew = searchParams.get('new') === '1'
@@ -73,12 +87,19 @@ function HomeContent() {
     if (step === 0) return level !== ''
     if (step === 1) return equipment.length > 0
     if (step === 2) return true
-    if (step === 3) return goal !== ''
+    if (step === 3) return goal !== '' && (goal !== 'skill-progression' || skills.length > 0)
     return false
   }
 
+  const toggleSkill = (skill: string) => {
+    setSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill])
+  }
+
   const handleGenerate = () => {
-    const inputs: GenerateRequest = { level, equipment, daysPerWeek: days, goal }
+    const inputs: GenerateRequest = {
+      level, equipment, daysPerWeek: days, goal,
+      ...(skills.length ? { skills } : {}),
+    }
     sessionStorage.setItem('workout-inputs', JSON.stringify(inputs))
     sessionStorage.setItem('plan-generating', '1')
     sessionStorage.removeItem('workout-plan')
@@ -199,7 +220,7 @@ function HomeContent() {
               {GOALS.map(g => (
                 <button
                   key={g.id}
-                  onClick={() => setGoal(g.id)}
+                  onClick={() => { setGoal(g.id); if (!g.requiresSkills) setSkills([]) }}
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all ${
                     goal === g.id
                       ? 'border-primary bg-primary/10 text-foreground'
@@ -211,6 +232,32 @@ function HomeContent() {
                 </button>
               ))}
             </div>
+
+            {goal === 'skill-progression' && (
+              <div className="mt-6">
+                <p className="text-sm font-medium mb-3">Which skills do you want to target? <span className="text-muted-foreground font-normal">(select all that apply)</span></p>
+                <div className="flex flex-col gap-2">
+                  {SKILL_OPTIONS.map(skill => (
+                    <button
+                      key={skill}
+                      onClick={() => toggleSkill(skill)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between ${
+                        skills.includes(skill)
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-card text-foreground/80 hover:border-foreground/30'
+                      }`}
+                    >
+                      <span className="font-medium text-sm">{skill}</span>
+                      {skills.includes(skill) && (
+                        <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

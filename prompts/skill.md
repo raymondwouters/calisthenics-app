@@ -629,25 +629,67 @@ Ask or infer:
   - rings
   - parallettes
   - resistance bands
+  - flat bench
+  - adjustable bench (multi-angle)
   - gym equipment
   - dumbbells
   - barbell
   - machines
 - What is the main goal?
-  - general strength
-  - muscle-up
-  - handstand
-  - front lever
-  - back lever
-  - planche
-  - L-sit
-  - weight loss or conditioning
-  - muscle gain
+  - calisthenics-foundation: build a base (beginner / early intermediate)
+  - skill-progression: target specific skills (intermediate / advanced) — user also specifies which skills
+  - general-strength: compound strength with progressive overload
+  - lose-weight: lose weight while maintaining muscle (higher volume, conditioning)
 - Any injuries or limitations?
 - Has the user plateaued?
 - Which exercises feel too hard or too easy?
 
 If the user does not provide all answers, create a plan using reasonable assumptions and label them clearly.
+
+---
+
+## 8B. Goal-specific generation rules
+
+Each goal changes program structure, block priority, rep ranges, and exercise selection.
+
+### calisthenics-foundation (Beginner / Early Intermediate)
+
+- Prioritise movement quality over volume
+- Block order: warmup → strength (push/pull/legs basics) → core → stretch
+- No dedicated skill block until the user has ≥10 push-ups and 1 strict pull-up
+- Use lowest-tier progressions: incline push-ups, scapular pull-ups, assisted squats, dead bugs, planks
+- Rep ranges: 3×8–12, rest 90s
+- Avoid: planche, front lever, muscle-up, handstand push-up progressions
+- Focus on joint preparation, base strength, and consistent movement patterns
+
+### skill-progression (Intermediate / Advanced)
+
+- Always include a dedicated skill block early in each workout session (fresh CNS = better skill learning)
+- Each target skill gets 3–5 sets of quality reps or holds per session (max 10s per set for statics)
+- Strength work should support the target skills (e.g. rows + scapular work for front lever; pike push-ups for handstand)
+- Select the appropriate drill from the progression lines in Section 6 based on current ability
+- Reduce accessory volume to make room for skill practice
+- If multiple skills are selected: rotate focus across the week (e.g. handstand Mon/Thu, front lever Tue/Fri)
+- Label skill block exercises with the target skill name in the notes field
+
+### general-strength
+
+- Prioritise compound strength movements with progressive overload
+- Blend heavy calisthenics (weighted pull-ups, dips, pistol squats) with barbell or dumbbell work if equipment allows
+- Rep ranges: 3–5 sets × 3–6 reps for primary lifts, 3×8–12 for accessories
+- Include a skill block only if the session length allows and the user is intermediate or above
+- Use bench, barbell, and dumbbell variations when equipment is available (Tier 4.5+)
+- Prioritise strength gains over conditioning; rest 2–3 minutes between heavy sets
+
+### lose-weight
+
+- Higher rep ranges: 3–4×12–20, shorter rest periods (45–60s)
+- Use circuit or superset format where possible to increase caloric expenditure
+- Include a conditioning finisher at the end of each workout (jump squats, burpees, mountain climbers, jumping lunges) — 2–3 rounds of 30–45s work
+- Maintain at least 2 pulling sessions per week to preserve back and bicep muscle
+- Reduce static skill work; emphasise dynamic, metabolically demanding movements
+- Keep protein-preserving compound movements (pull-ups, dips, squats, rows) as the session anchors
+- Rest days: active recovery only — stretch sessions, light walks, mobility work
 
 ---
 
@@ -1423,6 +1465,33 @@ Unlocks:
 - deficit push-ups
 - handstand push-up progressions
 - wrist-friendly floor alternatives
+
+## Tier 4.5 — Bench (flat or adjustable)
+
+A flat bench unlocks:
+
+- flat bench press (barbell or dumbbell, if weights available)
+- dumbbell flys
+- step-ups
+- decline push-ups (feet elevated on bench)
+- bench dips (bodyweight)
+- seated dumbbell exercises
+
+An adjustable (multi-angle) bench additionally unlocks:
+
+- incline bench press (30–60°)
+- incline dumbbell flys
+- decline bench press
+- seated overhead press / shoulder press at multiple angles
+- incline dumbbell rows
+
+Note: prescribe barbell bench press only if barbell & plates are also selected.
+Prescribe dumbbell variations if the user has dumbbells or full gym access.
+For bodyweight-only users with a bench, use it for step-ups, decline push-ups, and bench dips only.
+
+Best next investment: barbell & plates, or dumbbells
+
+---
 
 ## Tier 5 — Barbell & plates (home)
 

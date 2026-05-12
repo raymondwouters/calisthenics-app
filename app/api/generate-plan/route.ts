@@ -7,19 +7,20 @@ import { GenerateRequest } from '@/lib/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-function inputHash(level: string, equipment: string[], daysPerWeek: number, goal: string): string {
+function inputHash(level: string, equipment: string[], daysPerWeek: number, goal: string, skills?: string[]): string {
   // v2: busts plans with old "Day 1" day names and missing rest days
-  const key = ['v2', level, [...equipment].sort().join(','), daysPerWeek, goal].join('|')
+  const skillKey = skills?.length ? skills.slice().sort().join('+') : ''
+  const key = ['v2', level, [...equipment].sort().join(','), daysPerWeek, goal, skillKey].join('|')
   return createHash('sha256').update(key).digest('hex')
 }
 
 export async function POST(req: NextRequest) {
   const body: GenerateRequest = await req.json()
-  const { level, equipment, daysPerWeek, goal, changes } = body
+  const { level, equipment, daysPerWeek, goal, skills, changes } = body
 
   // Only use cache when there are no custom changes
   if (!changes) {
-    const hash = inputHash(level, equipment, daysPerWeek, goal)
+    const hash = inputHash(level, equipment, daysPerWeek, goal, skills)
     const { data: cached } = await supabase
       .from('cached_plans')
       .select('plan')
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const hash = inputHash(level, equipment, daysPerWeek, goal)
+  const hash = inputHash(level, equipment, daysPerWeek, goal, skills)
 
   const workoutDays = daysPerWeek
   const restDays = 7 - workoutDays
@@ -42,7 +43,7 @@ Generate a personalized calisthenics workout plan for me with the following prof
 - Level: ${level}
 - Equipment available: ${equipment.join(', ')}
 - Training days per week: ${daysPerWeek}
-- Primary goal: ${goal}
+- Primary goal: ${goal}${skills?.length ? `\n- Target skills: ${skills.join(', ')}` : ''}
 
 The plan MUST cover exactly 7 days: Monday through Sunday.
 - ${workoutDays} days are workout days (spread evenly, e.g. Mon/Wed/Fri for 3 days)

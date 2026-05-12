@@ -28,6 +28,8 @@ const EQUIPMENT_OPTIONS = [
   { id: 'resistance bands', label: 'Resistance bands' },
   { id: 'rings', label: 'Rings' },
   { id: 'parallettes', label: 'Parallettes' },
+  { id: 'bench (flat)', label: 'Flat bench' },
+  { id: 'bench (adjustable)', label: 'Bench (adjustable / multi-angle)' },
   { id: 'barbell & plates', label: 'Barbell & plates' },
   { id: 'full gym access', label: 'Full gym access' },
 ]
@@ -35,10 +37,21 @@ const EQUIPMENT_OPTIONS = [
 const DAYS = [2, 3, 4, 5, 6]
 
 const GOALS = [
-  { id: 'General fitness', label: 'General fitness' },
-  { id: 'Build strength', label: 'Build strength' },
-  { id: 'Learn skills', label: 'Learn skills' },
-  { id: 'Muscle gain', label: 'Muscle gain' },
+  { id: 'calisthenics-foundation', label: 'Build a calisthenics foundation', requiresSkills: false },
+  { id: 'skill-progression', label: 'Improve skill progression', requiresSkills: true },
+  { id: 'general-strength', label: 'General strength building', requiresSkills: false },
+  { id: 'lose-weight', label: 'Lose weight, maintain muscle', requiresSkills: false },
+]
+
+const SKILL_OPTIONS = [
+  'Handstand',
+  'Handstand push-up',
+  'Planche',
+  'Front lever',
+  'Back lever',
+  'Muscle-up',
+  'L-sit / V-sit',
+  'One-arm pull-up',
 ]
 
 export default function AccountPage() {
@@ -58,6 +71,7 @@ export default function AccountPage() {
   const [equipment, setEquipment] = useState<string[]>(['floor'])
   const [daysPerWeek, setDaysPerWeek] = useState(3)
   const [goal, setGoal] = useState('')
+  const [skills, setSkills] = useState<string[]>([])
   const [isDirty, setIsDirty] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
@@ -89,6 +103,7 @@ export default function AccountPage() {
         setEquipment(inputs.equipment ?? ['floor'])
         setDaysPerWeek(inputs.daysPerWeek ?? 3)
         setGoal(inputs.goal ?? '')
+        setSkills(inputs.skills ?? [])
       }
       setLoading(false)
     })
@@ -98,14 +113,16 @@ export default function AccountPage() {
     newLevel: string,
     newEquipment: string[],
     newDays: number,
-    newGoal: string
+    newGoal: string,
+    newSkills: string[]
   ) => {
     if (!originalInputs) return
     const changed =
       newLevel !== originalInputs.level ||
       newDays !== originalInputs.daysPerWeek ||
       newGoal !== originalInputs.goal ||
-      JSON.stringify([...newEquipment].sort()) !== JSON.stringify([...originalInputs.equipment].sort())
+      JSON.stringify([...newEquipment].sort()) !== JSON.stringify([...originalInputs.equipment].sort()) ||
+      JSON.stringify([...newSkills].sort()) !== JSON.stringify([...(originalInputs.skills ?? [])].sort())
     setIsDirty(changed)
   }
 
@@ -115,12 +132,23 @@ export default function AccountPage() {
       ? equipment.filter(e => e !== id)
       : [...equipment, id]
     setEquipment(next)
-    checkDirty(level, next, daysPerWeek, goal)
+    checkDirty(level, next, daysPerWeek, goal, skills)
   }
 
-  const updateLevel = (l: string) => { setLevel(l); checkDirty(l, equipment, daysPerWeek, goal) }
-  const updateDays = (d: number) => { setDaysPerWeek(d); checkDirty(level, equipment, d, goal) }
-  const updateGoal = (g: string) => { setGoal(g); checkDirty(level, equipment, daysPerWeek, g) }
+  const toggleSkill = (skill: string) => {
+    const next = skills.includes(skill) ? skills.filter(s => s !== skill) : [...skills, skill]
+    setSkills(next)
+    checkDirty(level, equipment, daysPerWeek, goal, next)
+  }
+
+  const updateLevel = (l: string) => { setLevel(l); checkDirty(l, equipment, daysPerWeek, goal, skills) }
+  const updateDays = (d: number) => { setDaysPerWeek(d); checkDirty(level, equipment, d, goal, skills) }
+  const updateGoal = (g: string) => {
+    setGoal(g)
+    const nextSkills = GOALS.find(go => go.id === g)?.requiresSkills ? skills : []
+    if (!GOALS.find(go => go.id === g)?.requiresSkills) setSkills([])
+    checkDirty(level, equipment, daysPerWeek, g, nextSkills)
+  }
 
   const handleSaveName = async () => {
     setSavingName(true)
@@ -137,12 +165,12 @@ export default function AccountPage() {
 
   const handleGenerateWithSettings = async () => {
     setShowConfirmDialog(false)
-    await generatePlan({ level, equipment, daysPerWeek, goal, changes: planChangesText.trim() || undefined })
+    await generatePlan({ level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}), changes: planChangesText.trim() || undefined })
   }
 
   const handleGenerateNewPlan = async () => {
     if (!planChangesText.trim() && !isDirty) return
-    await generatePlan({ level, equipment, daysPerWeek, goal, changes: planChangesText.trim() || undefined })
+    await generatePlan({ level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}), changes: planChangesText.trim() || undefined })
   }
 
   const generatePlan = async (inputs: GenerateRequest) => {
@@ -338,6 +366,27 @@ export default function AccountPage() {
                   </button>
                 ))}
               </div>
+
+              {goal === 'skill-progression' && (
+                <div className="mt-4">
+                  <p className="text-xs text-muted-foreground mb-2">Target skills</p>
+                  <div className="flex flex-wrap gap-2">
+                    {SKILL_OPTIONS.map(skill => (
+                      <button
+                        key={skill}
+                        onClick={() => toggleSkill(skill)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                          skills.includes(skill)
+                            ? 'border-primary bg-primary/8 text-primary'
+                            : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                        }`}
+                      >
+                        {skill}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -379,7 +428,7 @@ export default function AccountPage() {
           <CardContent>
             {error && <p className="text-destructive text-sm mb-3">{error}</p>}
             <Button
-              onClick={() => generatePlan({ level, equipment, daysPerWeek, goal })}
+              onClick={() => generatePlan({ level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}) })}
               disabled={generating}
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-2"
             >
