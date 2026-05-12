@@ -39,8 +39,15 @@ export async function POST() {
   const currentPlan = planData?.plan as { plan: WorkoutPlan } | undefined
   const inputs = planData?.inputs as GenerateRequest | undefined
 
-  const logSummary = logs.length > 0
-    ? logs.map(log => {
+  const restDays = new Set(
+    currentPlan?.plan?.sessions
+      ?.filter(s => s.type === 'rest')
+      .map(s => s.day) ?? []
+  )
+  const workoutLogs = logs.filter(log => !restDays.has(log.session_day))
+
+  const logSummary = workoutLogs.length > 0
+    ? workoutLogs.map(log => {
         const setsDesc = log.sets_data.map(s =>
           s.reps !== undefined ? `${s.reps} reps` : `${s.duration_s}s`
         ).join(', ')

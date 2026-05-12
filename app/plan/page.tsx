@@ -399,6 +399,7 @@ interface ExerciseCardProps {
   onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
+  hideAdjust?: boolean
 }
 
 function ExerciseCard({
@@ -418,6 +419,7 @@ function ExerciseCard({
   onAdjusted,
   onUndone,
   isPreview,
+  hideAdjust = false,
 }: ExerciseCardProps) {
   const [adjusting, setAdjusting] = useState<'regression' | 'progression' | null>(null)
   const [limitMessage, setLimitMessage] = useState('')
@@ -978,8 +980,8 @@ function ExerciseCard({
         </div>
       )}
 
-      {/* Difficulty adjustment — hidden in preview/history mode */}
-      {!isPreview && (
+      {/* Difficulty adjustment — hidden in preview/history mode and on stretch days */}
+      {!isPreview && !hideAdjust && (
         <div className="mt-2 pt-3 border-t border-border/50">
           <p className="text-xs text-muted-foreground mb-2.5">How did this feel?</p>
           <div className="flex gap-2">
@@ -1047,6 +1049,7 @@ interface BlockSectionProps {
   onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
+  hideAdjust?: boolean
 }
 
 function BlockSection({
@@ -1066,6 +1069,7 @@ function BlockSection({
   onAdjusted,
   onUndone,
   isPreview,
+  hideAdjust = false,
 }: BlockSectionProps) {
   return (
     <div className="mb-5">
@@ -1092,6 +1096,7 @@ function BlockSection({
             onAdjusted={onAdjusted}
             onUndone={onUndone}
             isPreview={isPreview}
+            hideAdjust={hideAdjust}
           />
         ))}
       </div>
@@ -1901,7 +1906,7 @@ export default function PlanPage() {
                   const isRest = session.type === 'rest'
                   const isActive = activeDay === i
                   const isToday = weekOffset === 0 && todaySessionIdx === i
-                  const isDone = !isRest && displayLogs.has(session.day)
+                  const isDone = displayLogs.has(session.day)
                   const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
                   return (
                     <button
@@ -1990,7 +1995,8 @@ export default function PlanPage() {
               onSetLogged={handleSetLogged}
               onAdjusted={schedulePlanSave}
               onUndone={cancelPlanSave}
-              isPreview={!isAccepted || isRestDay || weekOffset >= 1 || weekIsFinished}
+              isPreview={!isAccepted || weekOffset >= 1 || weekIsFinished}
+              hideAdjust={isRestDay}
             />
           ))}
         </div>
