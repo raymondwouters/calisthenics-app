@@ -78,7 +78,7 @@ function isTimed(reps: string) {
 }
 
 function eachSide(reps: string) {
-  return /each side/i.test(reps)
+  return /\b(each|per)\s+(side|leg|arm|limb)\b/i.test(reps)
 }
 
 function parseTargetReps(reps: string): number | null {
