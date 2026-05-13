@@ -22,13 +22,13 @@ const BLOCK_LABELS: Record<string, string> = {
 }
 
 const BLOCK_COLORS: Record<string, string> = {
-  warmup: 'text-amber-600',
-  skill: 'text-violet-600',
+  warmup: 'text-amber-400',
+  skill: 'text-violet-400',
   strength: 'text-primary',
-  accessory: 'text-blue-600',
-  core: 'text-emerald-600',
+  accessory: 'text-blue-400',
+  core: 'text-emerald-400',
   cooldown: 'text-muted-foreground',
-  stretch: 'text-teal-600',
+  stretch: 'text-teal-400',
 }
 
 const FEEDBACK_PLACEHOLDERS = [
@@ -192,7 +192,7 @@ function getWeekInfoByOffset(planCreatedAt: Date, offset: number): { weekNumber:
 
 function formatWeekLabel(start: Date, end: Date): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`
+  return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`
 }
 
 function formatPrevLog(log: SetLog | null | undefined): string {
@@ -1354,7 +1354,7 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
       <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
         {readyToProgress.length > 0 && (
           <div>
-            <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
+            <p className="text-[11px] font-semibold tracking-widest text-emerald-400 uppercase mb-2">Progressing well</p>
             <div className="flex flex-wrap gap-2">
               {readyToProgress.map((ex, i) => (
                 <span key={i} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
@@ -1376,7 +1376,7 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
 
         {fb.analysis.plateaued.length > 0 && (
           <div>
-            <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
+            <p className="text-[11px] font-semibold tracking-widest text-amber-400 uppercase mb-2">Plateaued</p>
             <div className="flex flex-col gap-1.5">
               {fb.analysis.plateaued.map(p => (
                 <div key={p.exercise} className="flex items-start gap-2">
@@ -2002,131 +2002,120 @@ export default function PlanPage() {
             )}
           </div>
         ) : (
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
-              {firstName ? `${firstName}'s` : 'My'} program — {goal.toLowerCase()}.
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold text-foreground">
+              {(() => {
+                const goalPhrases: Record<string, string> = {
+                  'skill-progression': 'master the basics',
+                  'general-strength': 'get stronger',
+                  'muscle-gain': 'build muscle',
+                }
+                const phrase = goalPhrases[goal] ?? 'stay consistent'
+                return firstName ? `${firstName}, ${phrase}.` : `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}.`
+              })()}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {level}
-              {equipment.filter(e => e !== 'floor').length > 0 && (
-                <> · {equipment.filter(e => e !== 'floor').map(e => EQUIPMENT_LABELS[e] ?? e).join(', ')}</>
-              )}
-              {' · '}
-              <a href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
-                Change
-              </a>
+            <p className="text-sm text-muted-foreground mt-2">
+              {weeklyFeedbacks.length > 0
+                ? weeklyFeedbacks[0].reason.length > 120
+                  ? weeklyFeedbacks[0].reason.slice(0, 120) + '…'
+                  : weeklyFeedbacks[0].reason
+                : `${level} · ${days_per_week} days per week.`}
             </p>
           </div>
         )}
 
-        {/* Week tabs */}
+        {/* Week title + day tabs */}
         {(() => {
+          const canGoPrev = weekOffset < maxOffset
+          const canGoNext = weekOffset > 0 || weekIsFinished
           return (
             <>
-              <div className="flex items-center gap-3 mb-3">
-                <button
-                  onClick={() => setWeekOffset(o => Math.min(o + 1, maxOffset))}
-                  disabled={weekOffset >= maxOffset}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
-                  aria-label="Go to previous week"
-                >
-                  ‹
-                </button>
-                <h2 className="text-sm font-semibold text-foreground/80 flex-1">
-                  {viewingWeekInfo
-                    ? `Week ${viewingWeekInfo.weekNumber} · ${formatWeekLabel(viewingWeekInfo.start, viewingWeekInfo.end)}`
-                    : `Week ${weekNumber}`}
-                </h2>
-                {weekOffset > 0 ? (
-                  <>
-                    <button
-                      onClick={() => setWeekOffset(o => Math.max(o - 1, 0))}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors"
-                      aria-label="Go to next week"
-                    >
-                      ›
-                    </button>
-                    <button
-                      onClick={() => setWeekOffset(0)}
-                      className="h-8 px-3 rounded-lg text-xs font-semibold text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors"
-                      aria-label="Return to today"
-                    >
-                      Today
-                    </button>
-                  </>
-                ) : (
-                  <div className="w-8" />
-                )}
-              </div>
-              <div className="bg-card rounded-2xl p-1 flex gap-0.5 mb-1">
-                {sessions.map((session, i) => {
-                  const isRest = session.type === 'rest'
-                  const isActive = activeDay === i
-                  const isToday = weekOffset === 0 && todaySessionIdx === i
-                  const isDone = displayLogs.has(session.day)
-                  const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => { setActiveDay(i); setSessionUndo(null) }}
-                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
-                        isDone && isActive
-                          ? 'bg-primary shadow-sm ring-1 ring-primary'
-                          : isDone
-                          ? 'bg-primary/75'
-                          : isActive
-                          ? 'bg-foreground shadow-sm'
-                          : 'hover:bg-secondary/40'
-                      }`}
-                    >
-                      <span className={`text-[11px] font-bold tracking-wide ${
-                        isDone
-                          ? 'text-white/90'
-                          : isActive
-                          ? 'text-background'
-                          : 'text-muted-foreground'
-                      }`}>
-                        {abbr}
-                      </span>
-                      {isDone ? (
-                        <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : isRest ? (
-                        <div className={`w-1.5 h-1.5 rounded-full border ${
-                          isActive ? 'border-background' : 'border-border'
+              <div className="bg-card rounded-2xl p-1 flex flex-col mb-5">
+                <div className="h-9 flex items-center justify-center">
+                  <span className="text-sm font-bold text-foreground">
+                    {`Week ${viewingWeekInfo?.weekNumber ?? weekNumber}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setWeekOffset(o => Math.min(o + 1, maxOffset))}
+                    disabled={!canGoPrev}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
+                    aria-label="Go to previous week"
+                  >
+                    ‹
+                  </button>
+                  <div className="flex gap-0.5 flex-1">
+                  {sessions.map((session, i) => {
+                    const isRest = session.type === 'rest'
+                    const isActive = activeDay === i
+                    const isToday = weekOffset === 0 && todaySessionIdx === i
+                    const isDone = displayLogs.has(session.day)
+                    const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => { setActiveDay(i); setSessionUndo(null) }}
+                        className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
+                          isDone && isActive
+                            ? 'bg-primary shadow-sm ring-1 ring-primary'
+                            : isDone
+                            ? 'bg-primary/75'
+                            : isActive
+                            ? 'bg-foreground shadow-sm'
+                            : 'hover:bg-secondary/40'
+                        }`}
+                      >
+                        <span className={`text-[11px] font-bold tracking-wide ${
+                          isDone
+                            ? 'text-white/90'
+                            : isActive
+                            ? 'text-background'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {abbr}
+                        </span>
+                        {isDone ? (
+                          <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : isRest ? (
+                          <div className={`w-1.5 h-1.5 rounded-full border ${
+                            isActive ? 'border-background' : 'border-border'
+                          }`} />
+                        ) : (
+                          <div className={`w-1.5 h-1.5 rounded-full ${
+                            isActive ? 'bg-background' : 'bg-muted-foreground/40'
+                          }`} />
+                        )}
+                        <div className={`w-1 h-1 rounded-full transition-colors ${
+                          isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
                         }`} />
-                      ) : (
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          isActive ? 'bg-background' : 'bg-muted-foreground/40'
-                        }`} />
-                      )}
-                      <div className={`w-1 h-1 rounded-full transition-colors ${
-                        isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
-                      }`} />
-                    </button>
-                  )
-                })}
+                      </button>
+                    )
+                  })}
+                </div>
+                  <button
+                    onClick={() => {
+                      if (weekOffset > 0) {
+                        setWeekOffset(o => Math.max(o - 1, 0))
+                      } else if (weekIsFinished) {
+                        window.location.reload()
+                      }
+                    }}
+                    disabled={!canGoNext}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
+                    aria-label="Go to next week"
+                  >
+                    ›
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-muted-foreground/40 mt-2 mb-5 pl-1">
-                On sunday your weekly schema will be updated.
-              </p>
+
             </>
           )
         })()}
 
-        {/* Day heading */}
-        <h2 className="text-base font-bold text-foreground mb-5">
-          {activeSession.day}
-          <span className="text-muted-foreground font-normal">
-            {' — '}{isRestDay ? 'Stretch and recover' : activeSession.label}
-          </span>
-          {!isRestDay && (
-            <span className="text-muted-foreground font-normal">
-              {' — '}{estimateDuration(activeSession)} min
-            </span>
-          )}
-        </h2>
 
         {/* Active session content */}
         <div>
@@ -2181,21 +2170,6 @@ export default function PlanPage() {
             inputs={inputs}
             onRefined={(updated) => replaceSession(activeDay, updated)}
           />
-        )}
-
-        {/* Weekly updates history */}
-        {weeklyFeedbacks.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-border">
-            <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-6">Weekly updates</p>
-            <div className="flex flex-col gap-10">
-              {weeklyFeedbacks.map((fb, i) => (
-                <div key={fb.id}>
-                  {i > 0 && <div className="h-px bg-border mb-10" />}
-                  <WeeklyFeedbackCard fb={fb} />
-                </div>
-              ))}
-            </div>
-          </div>
         )}
 
       </div>
