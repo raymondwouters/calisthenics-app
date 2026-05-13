@@ -73,21 +73,16 @@ export default function Nav() {
     <>
       <header className="h-14 bg-background flex items-center px-5">
         <div className="flex-1 flex items-center">
-          <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
+          <button
+            onClick={() => router.push('/plan')}
+            className="text-sm font-semibold text-foreground tracking-tight hover:opacity-70 transition-opacity"
+          >
+            A Fresh Training Week
+          </button>
         </div>
 
         {/* Desktop inline nav */}
         <nav className="hidden sm:flex items-center gap-1 mr-2">
-          <DesktopNavItem
-            label="My program"
-            active={pathname === '/plan'}
-            onClick={() => router.push('/plan')}
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            }
-          />
           <DesktopNavItem
             label="Account"
             active={pathname === '/account'}
@@ -152,16 +147,6 @@ export default function Nav() {
 
         {/* Nav links */}
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-          <DrawerNavItem
-            label="My program"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            }
-            active={pathname === '/plan'}
-            onClick={() => navigate('/plan')}
-          />
           <DrawerNavItem
             label="Account"
             icon={
