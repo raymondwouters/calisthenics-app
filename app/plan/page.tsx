@@ -733,13 +733,13 @@ function ExerciseCard({
                 key={i}
                 className={`rounded-xl border py-2 ${
                   log !== null
-                    ? 'bg-primary border-primary text-primary-foreground'
+                    ? 'bg-secondary border-border text-foreground'
                     : 'border-border bg-card text-muted-foreground'
                 }`}
               >
                 {log !== null ? (
                   <div className="flex flex-col items-center leading-none gap-0.5">
-                    <span className="text-[10px] font-semibold uppercase opacity-70">{shortLabel}</span>
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground">{shortLabel}</span>
                     <span className="text-sm font-bold">{setLogDisplay(log)}</span>
                   </div>
                 ) : (
@@ -773,9 +773,9 @@ function ExerciseCard({
                   disabled={timerActive}
                   className={`rounded-xl border transition-all disabled:cursor-default ${
                     isRunningThis
-                      ? 'bg-primary border-primary text-primary-foreground py-2'
+                      ? 'bg-secondary border-foreground/20 text-foreground py-2'
                       : isDone
-                      ? 'bg-primary border-primary text-primary-foreground py-2'
+                      ? 'bg-secondary border-border text-foreground py-2'
                       : isSelected
                       ? 'border-foreground/20 bg-background text-foreground py-2.5'
                       : 'border-border bg-card text-muted-foreground py-2.5'
@@ -783,7 +783,7 @@ function ExerciseCard({
                 >
                   {isDone || isRunningThis ? (
                     <div className="flex flex-col items-center leading-none gap-0.5">
-                      <span className="text-[10px] font-semibold uppercase opacity-70">{shortLabel}</span>
+                      <span className="text-[10px] font-semibold uppercase text-muted-foreground">{shortLabel}</span>
                       <span className="text-sm font-bold">
                         {isRunningThis ? `${elapsed}s` : setLogDisplay(log!)}
                       </span>
@@ -2057,35 +2057,29 @@ export default function PlanPage() {
                         key={i}
                         onClick={() => { setActiveDay(i); setSessionUndo(null) }}
                         className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
-                          isDone && isActive
-                            ? 'bg-primary shadow-sm ring-1 ring-primary'
+                          isActive
+                            ? 'ring-2 ring-foreground bg-background'
                             : isDone
-                            ? 'bg-primary/75'
-                            : isActive
-                            ? 'bg-foreground shadow-sm'
+                            ? 'ring-1 ring-foreground/30 bg-background'
                             : 'hover:bg-secondary/40'
                         }`}
                       >
                         <span className={`text-[11px] font-bold tracking-wide ${
-                          isDone
-                            ? 'text-white/90'
-                            : isActive
-                            ? 'text-background'
-                            : 'text-muted-foreground'
+                          isActive || isDone ? 'text-foreground' : 'text-muted-foreground'
                         }`}>
                           {abbr}
                         </span>
                         {isDone ? (
-                          <svg className="w-3 h-3 text-white/80" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 text-foreground/50" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         ) : isRest ? (
                           <div className={`w-1.5 h-1.5 rounded-full border ${
-                            isActive ? 'border-background' : 'border-border'
+                            isActive ? 'border-foreground' : 'border-border'
                           }`} />
                         ) : (
                           <div className={`w-1.5 h-1.5 rounded-full ${
-                            isActive ? 'bg-background' : 'bg-muted-foreground/40'
+                            isActive ? 'bg-foreground' : 'bg-muted-foreground/40'
                           }`} />
                         )}
                         <div className={`w-1 h-1 rounded-full transition-colors ${
