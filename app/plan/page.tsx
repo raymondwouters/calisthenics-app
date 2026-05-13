@@ -40,13 +40,13 @@ const FEEDBACK_PLACEHOLDERS = [
 ]
 
 const DAY_ABBR: Record<string, string> = {
-  Monday: 'MA',
-  Tuesday: 'DI',
-  Wednesday: 'WO',
-  Thursday: 'DO',
-  Friday: 'VR',
-  Saturday: 'ZA',
-  Sunday: 'ZO',
+  Monday: 'MON',
+  Tuesday: 'TUE',
+  Wednesday: 'WED',
+  Thursday: 'THU',
+  Friday: 'FRI',
+  Saturday: 'SAT',
+  Sunday: 'SUN',
 }
 
 const EQUIPMENT_LABELS: Record<string, string> = {
