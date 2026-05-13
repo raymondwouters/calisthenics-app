@@ -58,7 +58,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
 
         <div className="mb-8 text-center">
-          <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-3">Calisthenics AI</p>
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-3">Calisthenics AI</p>
           <h1 className="text-2xl font-bold">Your training, tracked.</h1>
           <p className="text-sm text-muted-foreground mt-2">Sign in to access your workout plan.</p>
         </div>

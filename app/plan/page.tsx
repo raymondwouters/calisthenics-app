@@ -22,13 +22,13 @@ const BLOCK_LABELS: Record<string, string> = {
 }
 
 const BLOCK_COLORS: Record<string, string> = {
-  warmup: 'text-amber-400',
-  skill: 'text-violet-400',
+  warmup: 'text-amber-600',
+  skill: 'text-violet-600',
   strength: 'text-primary',
-  accessory: 'text-blue-400',
-  core: 'text-emerald-400',
+  accessory: 'text-blue-600',
+  core: 'text-emerald-600',
   cooldown: 'text-muted-foreground',
-  stretch: 'text-teal-400',
+  stretch: 'text-teal-600',
 }
 
 const FEEDBACK_PLACEHOLDERS = [
@@ -1354,7 +1354,7 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
       <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
         {readyToProgress.length > 0 && (
           <div>
-            <p className="text-[11px] font-semibold tracking-widest text-emerald-400 uppercase mb-2">Progressing well</p>
+            <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
             <div className="flex flex-wrap gap-2">
               {readyToProgress.map((ex, i) => (
                 <span key={i} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
@@ -1376,7 +1376,7 @@ function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
 
         {fb.analysis.plateaued.length > 0 && (
           <div>
-            <p className="text-[11px] font-semibold tracking-widest text-amber-400 uppercase mb-2">Plateaued</p>
+            <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
             <div className="flex flex-col gap-1.5">
               {fb.analysis.plateaued.map(p => (
                 <div key={p.exercise} className="flex items-start gap-2">

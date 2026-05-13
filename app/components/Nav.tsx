@@ -56,7 +56,7 @@ export default function Nav() {
     return (
       <header className="h-14 bg-background flex items-center px-5">
         <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
-        <span className="ml-2 text-xs text-accent font-medium">AI</span>
+        <span className="ml-2 text-xs text-muted-foreground font-medium">AI</span>
       </header>
     )
   }
@@ -65,7 +65,7 @@ export default function Nav() {
     return (
       <header className="h-14 bg-background flex items-center px-5">
         <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
-        <span className="ml-2 text-xs text-accent font-medium">AI</span>
+        <span className="ml-2 text-xs text-muted-foreground font-medium">AI</span>
       </header>
     )
   }
@@ -76,7 +76,7 @@ export default function Nav() {
       <header className="h-14 bg-background flex items-center px-5">
         <div className="flex-1 flex items-center">
           <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
-          <span className="ml-2 text-xs text-accent font-medium">AI</span>
+          <span className="ml-2 text-xs text-muted-foreground font-medium">AI</span>
         </div>
 
         {/* Desktop inline nav */}
