@@ -55,7 +55,7 @@ export default function Nav() {
   if (pathname === '/') {
     return (
       <header className="h-14 bg-background flex items-center justify-center px-5">
-        <span className="text-sm font-semibold text-foreground tracking-tight">MyWorkout</span>
+        <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
       </header>
     )
   }
@@ -63,7 +63,7 @@ export default function Nav() {
   if (!loaded) {
     return (
       <header className="h-14 bg-background flex items-center justify-center px-5">
-        <span className="text-sm font-semibold text-foreground tracking-tight">MyWorkout</span>
+        <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
       </header>
     )
   }
@@ -73,7 +73,7 @@ export default function Nav() {
     <>
       <header className="h-14 bg-background flex items-center px-5">
         <div className="flex-1 flex items-center">
-          <span className="text-sm font-semibold text-foreground tracking-tight">MyWorkout</span>
+          <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
         </div>
 
         {/* Desktop inline nav */}
