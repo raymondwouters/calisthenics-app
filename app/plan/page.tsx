@@ -733,13 +733,13 @@ function ExerciseCard({
                 key={i}
                 className={`rounded-xl border py-2 ${
                   log !== null
-                    ? 'bg-secondary border-border text-foreground'
+                    ? 'bg-[var(--sage)] border-[var(--sage)] text-white'
                     : 'border-border bg-card text-muted-foreground'
                 }`}
               >
                 {log !== null ? (
                   <div className="flex flex-col items-center leading-none gap-0.5">
-                    <span className="text-[10px] font-semibold uppercase text-muted-foreground">{shortLabel}</span>
+                    <span className="text-[10px] font-semibold uppercase text-white/70">{shortLabel}</span>
                     <span className="text-sm font-bold">{setLogDisplay(log)}</span>
                   </div>
                 ) : (
@@ -773,9 +773,9 @@ function ExerciseCard({
                   disabled={timerActive}
                   className={`rounded-xl border transition-all disabled:cursor-default ${
                     isRunningThis
-                      ? 'bg-secondary border-foreground/20 text-foreground py-2'
+                      ? 'bg-[var(--sage)] border-[var(--sage)] text-white py-2'
                       : isDone
-                      ? 'bg-secondary border-border text-foreground py-2'
+                      ? 'bg-[var(--sage)] border-[var(--sage)] text-white py-2'
                       : isSelected
                       ? 'border-foreground/20 bg-background text-foreground py-2.5'
                       : 'border-border bg-card text-muted-foreground py-2.5'
@@ -783,7 +783,7 @@ function ExerciseCard({
                 >
                   {isDone || isRunningThis ? (
                     <div className="flex flex-col items-center leading-none gap-0.5">
-                      <span className="text-[10px] font-semibold uppercase text-muted-foreground">{shortLabel}</span>
+                      <span className="text-[10px] font-semibold uppercase text-white/70">{shortLabel}</span>
                       <span className="text-sm font-bold">
                         {isRunningThis ? `${elapsed}s` : setLogDisplay(log!)}
                       </span>
@@ -2031,11 +2031,6 @@ export default function PlanPage() {
           return (
             <>
               <div className="bg-card rounded-2xl p-1 flex flex-col mb-5">
-                <div className="h-9 flex items-center justify-center">
-                  <span className="text-sm font-bold text-foreground">
-                    {`Week ${viewingWeekInfo?.weekNumber ?? weekNumber}`}
-                  </span>
-                </div>
                 <div className="flex items-center gap-0.5">
                   <button
                     onClick={() => setWeekOffset(o => Math.min(o + 1, maxOffset))}
@@ -2058,14 +2053,12 @@ export default function PlanPage() {
                         onClick={() => { setActiveDay(i); setSessionUndo(null) }}
                         className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
                           isActive
-                            ? 'ring-2 ring-foreground bg-background'
-                            : isDone
-                            ? 'ring-1 ring-foreground/30 bg-background'
-                            : 'hover:bg-secondary/40'
+                            ? 'ring-2 ring-[var(--sage)] bg-background'
+                            : 'ring-1 ring-border hover:bg-secondary/40'
                         }`}
                       >
                         <span className={`text-[11px] font-bold tracking-wide ${
-                          isActive || isDone ? 'text-foreground' : 'text-muted-foreground'
+                          isActive ? 'text-[var(--sage)]' : isDone ? 'text-foreground' : 'text-muted-foreground'
                         }`}>
                           {abbr}
                         </span>
@@ -2075,11 +2068,11 @@ export default function PlanPage() {
                           </svg>
                         ) : isRest ? (
                           <div className={`w-1.5 h-1.5 rounded-full border ${
-                            isActive ? 'border-foreground' : 'border-border'
+                            isActive ? 'border-[var(--sage)]' : 'border-border'
                           }`} />
                         ) : (
                           <div className={`w-1.5 h-1.5 rounded-full ${
-                            isActive ? 'bg-foreground' : 'bg-muted-foreground/40'
+                            isActive ? 'bg-[var(--sage)]' : 'bg-muted-foreground/40'
                           }`} />
                         )}
                         <div className={`w-1 h-1 rounded-full transition-colors ${
