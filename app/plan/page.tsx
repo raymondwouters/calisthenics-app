@@ -2003,16 +2003,11 @@ export default function PlanPage() {
           </div>
         ) : (
           <div className="mb-8 text-center">
+            {firstName && (
+              <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-2">{firstName}</p>
+            )}
             <h1 className="text-3xl font-bold text-foreground">
-              {(() => {
-                const goalPhrases: Record<string, string> = {
-                  'skill-progression': 'master the basics',
-                  'general-strength': 'get stronger',
-                  'muscle-gain': 'build muscle',
-                }
-                const phrase = goalPhrases[goal] ?? 'stay consistent'
-                return firstName ? `${firstName}, ${phrase}.` : `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}.`
-              })()}
+              {activeSession.day} · {activeSession.label}
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
               {weeklyFeedbacks.length > 0
