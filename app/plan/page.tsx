@@ -2002,9 +2002,9 @@ export default function PlanPage() {
             )}
           </div>
         ) : (
-          <div className="mb-8 text-center">
+          <div className="mb-8">
             {firstName && (
-              <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-2">{firstName}</p>
+              <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-2">Back at it, {firstName}</p>
             )}
             <h1 className="text-3xl font-bold text-foreground">
               {activeSession.day} · {activeSession.label}
