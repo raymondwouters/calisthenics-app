@@ -1105,7 +1105,7 @@ function BlockSection({
       <p className={`text-xs font-semibold tracking-widest uppercase mb-3 ${BLOCK_COLORS[block.type] ?? 'text-muted-foreground'}`}>
         {BLOCK_LABELS[block.type] ?? block.type}
       </p>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-6">
         {block.exercises.map((ex, i) => (
           <ExerciseCard
             key={i}
@@ -2024,84 +2024,49 @@ export default function PlanPage() {
           </div>
         )}
 
-        {/* Week title + day tabs */}
-        {(() => {
-          const canGoPrev = weekOffset < maxOffset
-          const canGoNext = weekOffset > 0 || weekIsFinished
-          return (
-            <>
-              <div className="bg-card rounded-2xl p-1 flex flex-col mb-5">
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => setWeekOffset(o => Math.min(o + 1, maxOffset))}
-                    disabled={!canGoPrev}
-                    className="w-11 h-11 flex items-center justify-center rounded-xl text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
-                    aria-label="Go to previous week"
-                  >
-                    ‹
-                  </button>
-                  <div className="flex gap-0.5 flex-1">
-                  {sessions.map((session, i) => {
-                    const isRest = session.type === 'rest'
-                    const isActive = activeDay === i
-                    const isToday = weekOffset === 0 && todaySessionIdx === i
-                    const isDone = displayLogs.has(session.day)
-                    const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => { setActiveDay(i); setSessionUndo(null) }}
-                        className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
-                          isActive
-                            ? 'ring-2 ring-[var(--sage)] bg-background'
-                            : 'ring-1 ring-border hover:bg-secondary/40'
-                        }`}
-                      >
-                        <span className={`text-[11px] font-bold tracking-wide ${
-                          isActive ? 'text-[var(--sage)]' : isDone ? 'text-foreground' : 'text-muted-foreground'
-                        }`}>
-                          {abbr}
-                        </span>
-                        {isDone ? (
-                          <svg className="w-3 h-3 text-foreground/50" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : isRest ? (
-                          <div className={`w-1.5 h-1.5 rounded-full border ${
-                            isActive ? 'border-[var(--sage)]' : 'border-border'
-                          }`} />
-                        ) : (
-                          <div className={`w-1.5 h-1.5 rounded-full ${
-                            isActive ? 'bg-[var(--sage)]' : 'bg-muted-foreground/40'
-                          }`} />
-                        )}
-                        <div className={`w-1 h-1 rounded-full transition-colors ${
-                          isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
-                        }`} />
-                      </button>
-                    )
-                  })}
-                </div>
-                  <button
-                    onClick={() => {
-                      if (weekOffset > 0) {
-                        setWeekOffset(o => Math.max(o - 1, 0))
-                      } else if (weekIsFinished) {
-                        window.location.reload()
-                      }
-                    }}
-                    disabled={!canGoNext}
-                    className="w-11 h-11 flex items-center justify-center rounded-xl text-lg font-medium text-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-colors disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
-                    aria-label="Go to next week"
-                  >
-                    ›
-                  </button>
-                </div>
-              </div>
-
-            </>
-          )
-        })()}
+        {/* Day tabs */}
+        <div className="flex gap-2 mb-5">
+          {sessions.map((session, i) => {
+            const isRest = session.type === 'rest'
+            const isActive = activeDay === i
+            const isToday = weekOffset === 0 && todaySessionIdx === i
+            const isDone = displayLogs.has(session.day)
+            const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
+            return (
+              <button
+                key={i}
+                onClick={() => { setActiveDay(i); setSessionUndo(null) }}
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
+                  isActive
+                    ? 'ring-2 ring-[var(--sage)] bg-background'
+                    : 'ring-1 ring-border hover:bg-secondary/40'
+                }`}
+              >
+                <span className={`text-[11px] font-bold tracking-wide ${
+                  isActive ? 'text-[var(--sage)]' : isDone ? 'text-foreground' : 'text-muted-foreground'
+                }`}>
+                  {abbr}
+                </span>
+                {isDone ? (
+                  <svg className="w-3 h-3 text-foreground/50" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : isRest ? (
+                  <div className={`w-1.5 h-1.5 rounded-full border ${
+                    isActive ? 'border-[var(--sage)]' : 'border-border'
+                  }`} />
+                ) : (
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    isActive ? 'bg-[var(--sage)]' : 'bg-muted-foreground/40'
+                  }`} />
+                )}
+                <div className={`w-1 h-1 rounded-full transition-colors ${
+                  isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
+                }`} />
+              </button>
+            )
+          })}
+        </div>
 
 
         {/* Active session content */}
