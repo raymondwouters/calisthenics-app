@@ -92,16 +92,6 @@ export default function Nav() {
             }
           />
           <DesktopNavItem
-            label="Progression"
-            active={pathname === '/progression'}
-            onClick={() => router.push('/progression')}
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            }
-          />
-          <DesktopNavItem
             label="Account"
             active={pathname === '/account'}
             onClick={() => router.push('/account')}
@@ -174,16 +164,6 @@ export default function Nav() {
             }
             active={pathname === '/plan'}
             onClick={() => navigate('/plan')}
-          />
-          <DrawerNavItem
-            label="Progression"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            }
-            active={pathname === '/progression'}
-            onClick={() => navigate('/progression')}
           />
           <DrawerNavItem
             label="Account"

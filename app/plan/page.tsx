@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis } from '@/lib/types'
+import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -1296,6 +1296,122 @@ function FinishWeekLoadingOverlay({ msgIdx }: FinishWeekLoadingOverlayProps) {
   )
 }
 
+// ─── WeeklyFeedbackCard ───────────────────────────────────────────────────────
+
+function weekLabel(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+function toExStr(item: unknown): string {
+  if (typeof item === 'string') return item
+  if (item && typeof item === 'object' && 'exercise' in item) return (item as Record<string, string>).exercise
+  return String(item)
+}
+
+function WeeklyFeedbackCard({ fb }: { fb: WeeklyFeedback }) {
+  const needsWork = [
+    ...(fb.analysis.needs_regression ?? []).map(toExStr),
+    ...fb.analysis.plateaued.map(p => p.exercise),
+  ]
+  const readyToProgress = (fb.analysis.ready_to_progress ?? []).map(toExStr)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">
+            {fb.action === 'new_plan' ? 'Plan updated' : 'Same plan'}
+          </p>
+          <p className="text-[11px] text-muted-foreground">{weekLabel(fb.created_at)}</p>
+        </div>
+        <p className="text-sm text-foreground leading-relaxed">{fb.reason}</p>
+
+        {fb.action === 'continue' && fb.weeks_to_continue && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Next check-in in{' '}
+            <span className="font-semibold text-foreground">
+              {fb.weeks_to_continue} week{fb.weeks_to_continue !== 1 ? 's' : ''}
+            </span>.
+          </p>
+        )}
+
+        {fb.action === 'new_plan' && fb.changes && fb.changes.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2.5">
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">What changed</p>
+            {fb.changes.map((c, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="font-semibold text-foreground">{c.exercise}</span>
+                <span className="text-muted-foreground text-xs">{c.from}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-semibold text-primary">{c.to}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-secondary/50 rounded-2xl p-5 flex flex-col gap-4">
+        {readyToProgress.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-emerald-600 uppercase mb-2">Progressing well</p>
+            <div className="flex flex-wrap gap-2">
+              {readyToProgress.map((ex, i) => (
+                <span key={i} className="text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1 rounded-full">{ex}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {needsWork.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Need more time</p>
+            <div className="flex flex-wrap gap-2">
+              {needsWork.map((ex, i) => (
+                <span key={i} className="text-xs font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">{ex}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {fb.analysis.plateaued.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-amber-600 uppercase mb-2">Plateaued</p>
+            <div className="flex flex-col gap-1.5">
+              {fb.analysis.plateaued.map(p => (
+                <div key={p.exercise} className="flex items-start gap-2">
+                  <span className="text-xs font-medium text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap">{p.exercise}</span>
+                  <span className="text-xs text-muted-foreground pt-1">
+                    {p.plateau_strategy.action === 'increase_volume' && `Increase to ${p.plateau_strategy.target_sets} sets × ${p.plateau_strategy.target_reps}`}
+                    {p.plateau_strategy.action === 'change_tempo' && `Slow the tempo: ${p.plateau_strategy.tempo}`}
+                    {p.plateau_strategy.action === 'add_pause' && `Add ${p.plateau_strategy.pause_seconds}s pause at hardest point`}
+                    {p.plateau_strategy.action === 'regress_and_rebuild' && `Regress — ${p.plateau_strategy.reason}`}
+                    {p.plateau_strategy.action === 'deload' && `Deload for ${p.plateau_strategy.duration_weeks} week`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {fb.analysis.insights.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">Key takeaways</p>
+            <ul className="flex flex-col gap-1.5">
+              {fb.analysis.insights.map((insight, i) => (
+                <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                  <span className="text-primary mt-0.5 shrink-0">·</span>
+                  {insight}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── PlanPage ─────────────────────────────────────────────────────────────────
 
 const GENERATING_MESSAGES = [
@@ -1343,6 +1459,7 @@ export default function PlanPage() {
   const [weekLogsMap, setWeekLogsMap] = useState<Map<number, Map<string, Map<string, SetLog[]>>>>(new Map())
   const [weekSessionsMap, setWeekSessionsMap] = useState<Map<string, Session[]>>(new Map())
   const [weekIsFinished, setWeekIsFinished] = useState(false)
+  const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1524,14 +1641,25 @@ export default function PlanPage() {
               ? new Date(nextWeekLoadedAt) >= currWeekMonday
               : false
 
-            const { data: weekFeedback } = await supabase
-              .from('weekly_feedback')
-              .select('id')
-              .eq('user_id', user.id)
-              .gte('created_at', currWeekMonday.toISOString())
-              .limit(1)
-              .maybeSingle()
+            const [{ data: weekFeedback }, { data: feedbackHistory }] = await Promise.all([
+              supabase
+                .from('weekly_feedback')
+                .select('id')
+                .eq('user_id', user.id)
+                .gte('created_at', currWeekMonday.toISOString())
+                .limit(1)
+                .maybeSingle(),
+              supabase
+                .from('weekly_feedback')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(20),
+            ])
             setWeekIsFinished(!weekOverridden && !!weekFeedback)
+            if (feedbackHistory && feedbackHistory.length > 0) {
+              setWeeklyFeedbacks(feedbackHistory as WeeklyFeedback[])
+            }
 
             if (logsData) {
               const allWeeksMap = new Map<number, Map<string, Map<string, SetLog[]>>>()
@@ -2053,6 +2181,21 @@ export default function PlanPage() {
             inputs={inputs}
             onRefined={(updated) => replaceSession(activeDay, updated)}
           />
+        )}
+
+        {/* Weekly updates history */}
+        {weeklyFeedbacks.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-border">
+            <p className="text-xs font-semibold tracking-widest text-accent uppercase mb-6">Weekly updates</p>
+            <div className="flex flex-col gap-10">
+              {weeklyFeedbacks.map((fb, i) => (
+                <div key={fb.id}>
+                  {i > 0 && <div className="h-px bg-border mb-10" />}
+                  <WeeklyFeedbackCard fb={fb} />
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
       </div>
