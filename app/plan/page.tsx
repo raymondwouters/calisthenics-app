@@ -685,7 +685,7 @@ function ExerciseCard({
   const panelTitle = `Set ${panelSetNum}${panelSide}`
 
   return (
-    <div className="bg-card rounded-xl p-4 flex flex-col gap-2 transition-all">
+    <div className="bg-card rounded-xl border border-border p-4 flex flex-col gap-2 transition-all">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <p className="font-semibold text-foreground leading-tight">{exercise.name}</p>
