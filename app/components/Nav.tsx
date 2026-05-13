@@ -54,18 +54,16 @@ export default function Nav() {
   // Logo-only during onboarding
   if (pathname === '/') {
     return (
-      <header className="h-14 bg-background flex items-center px-5">
-        <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
-        <span className="ml-2 text-xs text-muted-foreground font-medium">AI</span>
+      <header className="h-14 bg-background flex items-center justify-center px-5">
+        <span className="text-sm font-semibold text-foreground tracking-tight">MyWorkout</span>
       </header>
     )
   }
 
   if (!loaded) {
     return (
-      <header className="h-14 bg-background flex items-center px-5">
-        <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
-        <span className="ml-2 text-xs text-muted-foreground font-medium">AI</span>
+      <header className="h-14 bg-background flex items-center justify-center px-5">
+        <span className="text-sm font-semibold text-foreground tracking-tight">MyWorkout</span>
       </header>
     )
   }
@@ -75,8 +73,7 @@ export default function Nav() {
     <>
       <header className="h-14 bg-background flex items-center px-5">
         <div className="flex-1 flex items-center">
-          <span className="text-sm font-semibold text-foreground tracking-tight">Calisthenics</span>
-          <span className="ml-2 text-xs text-muted-foreground font-medium">AI</span>
+          <span className="text-sm font-semibold text-foreground tracking-tight">MyWorkout</span>
         </div>
 
         {/* Desktop inline nav */}

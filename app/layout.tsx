@@ -6,10 +6,10 @@ import Nav from "./components/Nav";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
-  title: "Calisthenics — Build your plan",
-  description: "AI-powered personalized calisthenics workout generator",
+  title: "MyWorkout — Build your plan",
+  description: "AI-powered personalized workout generator",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Calisthenics" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "MyWorkout" },
 };
 
 export const viewport: Viewport = {
