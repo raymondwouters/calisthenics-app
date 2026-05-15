@@ -131,7 +131,7 @@ function HomeContent() {
           <p className="text-lg text-muted-foreground leading-relaxed">Adaptive calisthenics programming built around your level, equipment, and progress. Ready the moment you open the app.</p>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-4">
           <h3 className="text-xl font-semibold text-foreground">Build your first training week.</h3>
         </div>
 
