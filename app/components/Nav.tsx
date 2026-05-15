@@ -54,7 +54,7 @@ export default function Nav() {
   // Logo-only during onboarding
   if (pathname === '/') {
     return (
-      <header className="h-14 bg-background flex items-center justify-center px-5">
+      <header className="h-14 bg-background flex items-center px-5">
         <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
       </header>
     )
@@ -62,7 +62,7 @@ export default function Nav() {
 
   if (!loaded) {
     return (
-      <header className="h-14 bg-background flex items-center justify-center px-5">
+      <header className="h-14 bg-background flex items-center px-5">
         <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
       </header>
     )
