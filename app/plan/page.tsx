@@ -2057,16 +2057,6 @@ export default function PlanPage() {
                 <div className={`w-1 h-1 rounded-full transition-colors ${
                   isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
                 }`} />
-                {!isRest && (
-                  <span className="text-[9px] text-muted-foreground leading-none truncate w-full text-center px-0.5">
-                    {session.label.split(' ')[0]}
-                  </span>
-                )}
-                {!isRest && (
-                  <span className="text-[9px] text-muted-foreground/60 leading-none">
-                    {estimateDuration(session)}m
-                  </span>
-                )}
               </button>
             )
           })}
