@@ -127,7 +127,7 @@ function HomeContent() {
 
         {/* Header */}
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-foreground mb-3 leading-tight">Stop planning. Start training.</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-3 leading-tight">Stop wasting time figuring out what to train.</h1>
           <p className="text-lg text-muted-foreground leading-relaxed">Adaptive calisthenics programming built around your level, equipment, and progress. Ready the moment you open the app.</p>
         </div>
 

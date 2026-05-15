@@ -2091,6 +2091,15 @@ export default function PlanPage() {
             setInputs(planRow.inputs as GenerateRequest)
             setPlanCreatedAt(registrationDate)
             setAllLogs(logsMap)
+            // Pre-populate so the completion animation doesn't fire for days already done before this session
+            for (const session of (planRow.plan as PlanResponse).plan.sessions) {
+              if (session.type !== 'workout') continue
+              const dayLogs = logsMap.get(session.day) ?? new Map()
+              const allExercises = session.blocks.flatMap((b: Block) => b.exercises)
+              if (allExercises.length > 0 && allExercises.every((ex: Exercise) => (dayLogs.get(ex.name)?.length ?? 0) >= ex.sets)) {
+                workoutCompletedDaysRef.current.add(session.day)
+              }
+            }
             setPrevLogs(prevLogsMap)
             if (prevPlanRow) setPrevPlan(prevPlanRow.plan as PlanResponse)
             setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(logsMap.keys())))
