@@ -2055,7 +2055,7 @@ export default function PlanPage() {
                 : `${level} · ${days_per_week} days per week · ${goal.toLowerCase()}`}
             </p>
             <button
-              onClick={() => router.push('/account')}
+              onClick={() => router.push('/account?highlight=training-settings')}
               className="mt-1 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
             >
               My training settings

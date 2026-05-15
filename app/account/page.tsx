@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { GenerateRequest } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -56,6 +56,9 @@ const SKILL_OPTIONS = [
 
 export default function AccountPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const trainingSettingsRef = useRef<HTMLDivElement>(null)
+  const [highlightTraining, setHighlightTraining] = useState(false)
 
   const [displayName, setDisplayName] = useState('')
   const [savingName, setSavingName] = useState(false)
@@ -103,8 +106,15 @@ export default function AccountPage() {
         setSkills(inputs.skills ?? [])
       }
       setLoading(false)
+      if (searchParams.get('highlight') === 'training-settings') {
+        setTimeout(() => {
+          trainingSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          setHighlightTraining(true)
+          setTimeout(() => setHighlightTraining(false), 2000)
+        }, 100)
+      }
     })
-  }, [router])
+  }, [router, searchParams])
 
   const checkDirty = (
     newLevel: string,
@@ -236,7 +246,7 @@ export default function AccountPage() {
         </Card>
 
         {/* Training settings */}
-        <Card className="bg-card border-border mb-5">
+        <Card ref={trainingSettingsRef} className={`bg-card border-border mb-5 transition-all${highlightTraining ? ' ring-2 ring-primary' : ''}`}>
           <CardHeader className="pb-4">
             <CardTitle className="text-foreground text-base">Training settings</CardTitle>
             <CardDescription className="text-muted-foreground text-sm">Changing these will prompt you to generate a new plan.</CardDescription>
