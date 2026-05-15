@@ -2383,25 +2383,17 @@ export default function PlanPage() {
         {/* Header */}
         {!isAccepted ? (
           <div className="mb-8">
-            {/* Onboarding steps — step 5 of 5 */}
-            <div className="flex gap-1 mb-6">
-              {[0, 1, 2, 3, 4].map(i => (
-                <div key={i} className="h-1 flex-1 rounded-full bg-primary" />
-              ))}
-            </div>
             <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Your plan</p>
             <h1 className="text-2xl font-bold text-foreground">Review and accept to start training.</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {level} · {goal.toLowerCase()}
             </p>
-            {userId && (
-              <button
-                onClick={handleDiscardNewPlan}
-                className="mt-2 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
-              >
-                Discard, generate new plan
-              </button>
-            )}
+            <button
+              onClick={handleDiscardNewPlan}
+              className="mt-2 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
+            >
+              Discard, generate new plan
+            </button>
           </div>
         ) : (
           <div className="mb-8">
