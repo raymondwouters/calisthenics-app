@@ -109,3 +109,18 @@ export interface WeeklyFeedback {
   plan_id?: string
   created_at: string
 }
+
+export interface PersonalRecord {
+  exerciseName: string
+  reps: number
+  previousBest: number
+}
+
+export interface WorkoutSummary {
+  setsCompleted: number
+  setsPlanned: number
+  totalReps: number
+  durationMinutes: number
+  personalRecords: PersonalRecord[]
+  repsDelta: number | null
+}
