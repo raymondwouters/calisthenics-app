@@ -410,7 +410,7 @@ interface ExerciseCardProps {
   prevSetsData?: SetLog[]
   onReplace: (updated: Exercise) => void
   onLogsChange: (logs: SetLog[]) => void
-  onSetLogged: (restSeconds: number, exerciseName: string) => void
+  onSetLogged: (restSeconds: number, exerciseName: string | null) => void
   onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
@@ -625,7 +625,8 @@ function ExerciseCard({
     onLogsChange(filledLogs)
 
     if (exercise.rest_seconds > 0) {
-      onSetLogged(exercise.rest_seconds, exercise.name)
+      const allSetsDone = updated.every(l => l !== null)
+      onSetLogged(exercise.rest_seconds, allSetsDone ? exercise.name : null)
     }
 
     schedulePersist(filledLogs)
@@ -1089,7 +1090,7 @@ interface BlockSectionProps {
   prevLogsForDay: Map<string, SetLog[]>
   onReplaceExercise: (exerciseIndex: number, updated: Exercise) => void
   onLogsChange: (exerciseName: string, logs: SetLog[]) => void
-  onSetLogged: (restSeconds: number, exerciseName: string) => void
+  onSetLogged: (restSeconds: number, exerciseName: string | null) => void
   onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
@@ -1875,10 +1876,13 @@ export default function PlanPage() {
     setIsAccepted(true)
   }
 
-  const handleSetLogged = (restSeconds: number, exerciseName: string) => {
-    const allExercises = activeSession.blocks.flatMap(b => b.exercises)
-    const idx = allExercises.findIndex(e => e.name === exerciseName)
-    const nextExercise = idx >= 0 && idx < allExercises.length - 1 ? allExercises[idx + 1] : null
+  const handleSetLogged = (restSeconds: number, exerciseName: string | null) => {
+    let nextExercise: Exercise | null = null
+    if (exerciseName) {
+      const allExercises = activeSession.blocks.flatMap(b => b.exercises)
+      const idx = allExercises.findIndex(e => e.name === exerciseName)
+      nextExercise = idx >= 0 && idx < allExercises.length - 1 ? allExercises[idx + 1] : null
+    }
     nextExerciseAfterRestRef.current = nextExercise
     setRestTimer({ remaining: restSeconds, total: restSeconds, minimized: false, nextExercise })
   }
