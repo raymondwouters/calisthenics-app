@@ -210,17 +210,18 @@ function formatPrevLog(log: SetLog | null | undefined): string {
 interface RestTimerOverlayProps {
   remaining: number
   total: number
+  nextExercise: Exercise | null
   onDismiss: () => void
   onMinimize: () => void
 }
 
-function RestTimerOverlay({ remaining, total, onDismiss, onMinimize }: RestTimerOverlayProps) {
+function RestTimerOverlay({ remaining, total, nextExercise, onDismiss, onMinimize }: RestTimerOverlayProps) {
   const circumference = 2 * Math.PI * 56
   const progress = total > 0 ? remaining / total : 0
   const strokeDashoffset = circumference * (1 - progress)
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-sm flex flex-col items-center justify-center">
+    <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-sm flex flex-col items-center justify-center px-5">
       <button
         onClick={onMinimize}
         aria-label="Minimize"
@@ -247,6 +248,16 @@ function RestTimerOverlay({ remaining, total, onDismiss, onMinimize }: RestTimer
         </svg>
         <p className="text-7xl font-black text-foreground leading-none relative z-10">{remaining}</p>
       </div>
+      {nextExercise && (
+        <div className="w-full max-w-xs bg-card border border-border rounded-2xl px-5 py-4 mb-6">
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-2">Next up</p>
+          <p className="text-base font-bold text-foreground">{nextExercise.name}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{nextExercise.sets} sets · {nextExercise.reps}</p>
+          {nextExercise.notes && (
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-t border-border pt-2">{nextExercise.notes}</p>
+          )}
+        </div>
+      )}
       <button
         onClick={onDismiss}
         className="px-8 py-3 rounded-full border border-border text-foreground/80 text-sm font-semibold hover:border-foreground/40 hover:text-foreground transition-colors"
@@ -399,12 +410,13 @@ interface ExerciseCardProps {
   prevSetsData?: SetLog[]
   onReplace: (updated: Exercise) => void
   onLogsChange: (logs: SetLog[]) => void
-  onSetLogged: (restSeconds: number) => void
+  onSetLogged: (restSeconds: number, exerciseName: string) => void
   onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
   hideAdjust?: boolean
   hideLogger?: boolean
+  isHighlighted?: boolean
 }
 
 function ExerciseCard({
@@ -612,7 +624,7 @@ function ExerciseCard({
     onLogsChange(filledLogs)
 
     if (exercise.rest_seconds > 0) {
-      onSetLogged(exercise.rest_seconds)
+      onSetLogged(exercise.rest_seconds, exercise.name)
     }
 
     schedulePersist(filledLogs)
@@ -687,7 +699,7 @@ function ExerciseCard({
   const panelTitle = `Set ${panelSetNum}${panelSide}`
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4 flex flex-col gap-2 transition-all">
+    <div id={`exercise-${exercise.name}`} className={`bg-card rounded-xl border border-border p-4 flex flex-col gap-2 transition-all${isHighlighted ? ' ring-2 ring-primary' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <p className="font-semibold text-foreground leading-tight">{exercise.name}</p>
@@ -1076,12 +1088,13 @@ interface BlockSectionProps {
   prevLogsForDay: Map<string, SetLog[]>
   onReplaceExercise: (exerciseIndex: number, updated: Exercise) => void
   onLogsChange: (exerciseName: string, logs: SetLog[]) => void
-  onSetLogged: (restSeconds: number) => void
+  onSetLogged: (restSeconds: number, exerciseName: string) => void
   onAdjusted: (oldExerciseName: string, sessionDay: string) => void
   onUndone: () => void
   isPreview: boolean
   hideAdjust?: boolean
   hideLogger?: boolean
+  highlightedExercise?: string | null
 }
 
 function BlockSection({
@@ -1103,6 +1116,7 @@ function BlockSection({
   isPreview,
   hideAdjust = false,
   hideLogger = false,
+  highlightedExercise,
 }: BlockSectionProps) {
   return (
     <div className="mb-5">
@@ -1131,6 +1145,7 @@ function BlockSection({
             isPreview={isPreview}
             hideAdjust={hideAdjust}
             hideLogger={hideLogger}
+            isHighlighted={highlightedExercise === ex.name}
           />
         ))}
       </div>
@@ -1448,7 +1463,9 @@ export default function PlanPage() {
   const [prevPlan, setPrevPlan] = useState<PlanResponse | null>(null)
   const [planCreatedAt, setPlanCreatedAt] = useState<Date | null>(null)
   const [isAccepted, setIsAccepted] = useState(false)
-  const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean } | null>(null)
+  const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean; nextExercise: Exercise | null } | null>(null)
+  const [highlightedExercise, setHighlightedExercise] = useState<string | null>(null)
+  const nextExerciseAfterRestRef = useRef<Exercise | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [generatingMsgIdx, setGeneratingMsgIdx] = useState(0)
@@ -1511,6 +1528,19 @@ export default function PlanPage() {
         return { ...prev, remaining: prev.remaining - 1 }
       })
     }, 1000)
+    return () => clearTimeout(t)
+  }, [restTimer])
+
+  useEffect(() => {
+    if (restTimer !== null) return
+    const next = nextExerciseAfterRestRef.current
+    if (!next) return
+    nextExerciseAfterRestRef.current = null
+    const el = document.getElementById(`exercise-${next.name}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setHighlightedExercise(next.name)
+    const t = setTimeout(() => setHighlightedExercise(null), 2000)
     return () => clearTimeout(t)
   }, [restTimer])
 
@@ -1844,8 +1874,12 @@ export default function PlanPage() {
     setIsAccepted(true)
   }
 
-  const handleSetLogged = (restSeconds: number) => {
-    setRestTimer({ remaining: restSeconds, total: restSeconds, minimized: false })
+  const handleSetLogged = (restSeconds: number, exerciseName: string) => {
+    const allExercises = activeSession.blocks.flatMap(b => b.exercises)
+    const idx = allExercises.findIndex(e => e.name === exerciseName)
+    const nextExercise = idx >= 0 && idx < allExercises.length - 1 ? allExercises[idx + 1] : null
+    nextExerciseAfterRestRef.current = nextExercise
+    setRestTimer({ remaining: restSeconds, total: restSeconds, minimized: false, nextExercise })
   }
 
   const handleConfirmFinishWeek = async () => {
@@ -2093,6 +2127,7 @@ export default function PlanPage() {
               isPreview={weekOffset >= 1 || weekIsFinished}
               hideAdjust={isRestDay}
               hideLogger={!isAccepted}
+              highlightedExercise={highlightedExercise}
             />
           ))}
         </div>
@@ -2160,6 +2195,7 @@ export default function PlanPage() {
         <RestTimerOverlay
           remaining={restTimer.remaining}
           total={restTimer.total}
+          nextExercise={restTimer.nextExercise}
           onDismiss={() => setRestTimer(null)}
           onMinimize={() => setRestTimer(prev => prev ? { ...prev, minimized: true } : null)}
         />
