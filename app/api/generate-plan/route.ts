@@ -16,10 +16,10 @@ function inputHash(level: string, equipment: string[], daysPerWeek: number, goal
 
 export async function POST(req: NextRequest) {
   const body: GenerateRequest = await req.json()
-  const { level, equipment, daysPerWeek, goal, skills, changes } = body
+  const { level, equipment, daysPerWeek, goal, skills, goalContext, changes } = body
 
-  // Only use cache when there are no custom changes
-  if (!changes) {
+  // Only use cache when there are no custom changes and no personalised goal context
+  if (!changes && !goalContext) {
     const hash = inputHash(level, equipment, daysPerWeek, goal, skills)
     const { data: cached } = await supabase
       .from('cached_plans')
@@ -43,7 +43,7 @@ Generate a personalized calisthenics workout plan for me with the following prof
 - Level: ${level}
 - Equipment available: ${equipment.join(', ')}
 - Training days per week: ${daysPerWeek}
-- Primary goal: ${goal}${skills?.length ? `\n- Target skills: ${skills.join(', ')}` : ''}
+- Primary goal: ${goal}${skills?.length ? `\n- Target skills: ${skills.join(', ')}` : ''}${goalContext ? `\n- Additional context: ${goalContext}` : ''}
 
 The plan MUST cover exactly 7 days: Monday through Sunday.
 - ${workoutDays} days are workout days (spread evenly, e.g. Mon/Wed/Fri for 3 days)
@@ -141,8 +141,8 @@ The JSON must follow this exact structure:
     }
   }
 
-  // Store in Supabase cache only for non-custom plans (fire and forget)
-  if (!changes) {
+  // Store in Supabase cache only for non-custom, non-personalised plans (fire and forget)
+  if (!changes && !goalContext) {
     supabase
       .from('cached_plans')
       .insert({ input_hash: hash, plan: planData })

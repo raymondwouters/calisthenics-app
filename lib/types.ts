@@ -35,6 +35,7 @@ export interface GenerateRequest {
   daysPerWeek: number
   goal: string
   skills?: string[]
+  goalContext?: string
   changes?: string
 }
 

@@ -30,11 +30,16 @@ const EQUIPMENT = [
 const DAYS = [2, 3, 4, 5, 6]
 
 const GOALS = [
-  { id: 'calisthenics-foundation', label: 'Build a calisthenics foundation', desc: 'Beginner / early intermediate', requiresSkills: false },
-  { id: 'skill-progression', label: 'Improve skill progression', desc: 'Intermediate / advanced — pick your target skills', requiresSkills: true },
-  { id: 'general-strength', label: 'General strength building', desc: 'Compound movements + progressive overload', requiresSkills: false },
-  { id: 'lose-weight', label: 'Lose weight, maintain muscle', desc: 'Higher volume, conditioning, calorie burn', requiresSkills: false },
+  { id: 'calisthenics-foundation', label: 'Build a calisthenics foundation', desc: 'Beginner / early intermediate', requiresSkills: false, contextType: null as null | 'injury' | 'mobility' | 'power' },
+  { id: 'skill-progression', label: 'Improve skill progression', desc: 'Intermediate / advanced — pick your target skills', requiresSkills: true, contextType: null as null | 'injury' | 'mobility' | 'power' },
+  { id: 'general-strength', label: 'General strength building', desc: 'Compound movements + progressive overload', requiresSkills: false, contextType: null as null | 'injury' | 'mobility' | 'power' },
+  { id: 'lose-weight', label: 'Lose weight, maintain muscle', desc: 'Higher volume, conditioning, calorie burn', requiresSkills: false, contextType: null as null | 'injury' | 'mobility' | 'power' },
+  { id: 'recover-injury', label: 'Recover from injury', desc: 'Train safely around your limitations', requiresSkills: false, contextType: 'injury' as null | 'injury' | 'mobility' | 'power' },
+  { id: 'mobility-flexibility', label: 'Improve mobility & flexibility', desc: 'Unlock movement and reduce tightness', requiresSkills: false, contextType: 'mobility' as null | 'injury' | 'mobility' | 'power' },
+  { id: 'explosive-power', label: 'Build explosive power', desc: 'Plyometrics, reactive strength, athletic transfer', requiresSkills: false, contextType: 'power' as null | 'injury' | 'mobility' | 'power' },
 ]
+
+const POWER_ACTIVITIES = ['Gymnastics', 'Martial arts', 'Parkour', 'General athletics']
 
 const SKILL_OPTIONS = [
   'Handstand',
@@ -58,6 +63,8 @@ function HomeContent() {
   const [days, setDays] = useState(3)
   const [goal, setGoal] = useState('calisthenics-foundation')
   const [skills, setSkills] = useState<string[]>([])
+  const [goalContext, setGoalContext] = useState('')
+  const [powerActivities, setPowerActivities] = useState<string[]>([])
 
   useEffect(() => {
     const isNew = searchParams.get('new') === '1'
@@ -94,13 +101,22 @@ function HomeContent() {
     setSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill])
   }
 
-  const canGenerate = goal !== 'skill-progression' || skills.length > 0
+  const selectedGoal = GOALS.find(g => g.id === goal)
+  const canGenerate =
+    (goal !== 'skill-progression' || skills.length > 0) &&
+    (selectedGoal?.contextType !== 'injury' || goalContext.trim().length > 0) &&
+    (selectedGoal?.contextType !== 'mobility' || goalContext.trim().length > 0) &&
+    (selectedGoal?.contextType !== 'power' || powerActivities.length > 0)
 
   const handleGenerate = () => {
     if (email.trim()) sessionStorage.setItem('guest-email', email.trim())
+    const contextValue = selectedGoal?.contextType === 'power'
+      ? powerActivities.join(', ')
+      : goalContext.trim()
     const inputs: GenerateRequest = {
       level, equipment, daysPerWeek: days, goal,
       ...(skills.length ? { skills } : {}),
+      ...(contextValue ? { goalContext: contextValue } : {}),
     }
     sessionStorage.setItem('workout-inputs', JSON.stringify(inputs))
     sessionStorage.setItem('plan-generating', '1')
@@ -216,7 +232,7 @@ function HomeContent() {
               {GOALS.map(g => (
                 <button
                   key={g.id}
-                  onClick={() => { setGoal(g.id); if (!g.requiresSkills) setSkills([]) }}
+                  onClick={() => { setGoal(g.id); if (!g.requiresSkills) setSkills([]); setGoalContext(''); setPowerActivities([]) }}
                   className={`w-full text-left px-4 py-3.5 rounded-xl border transition-all ${
                     goal === g.id
                       ? 'border-primary bg-primary/10 text-foreground'
@@ -245,6 +261,60 @@ function HomeContent() {
                     >
                       <span className="font-medium text-sm">{skill}</span>
                       {skills.includes(skill) && (
+                        <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {goal === 'recover-injury' && (
+              <div className="mt-4">
+                <p className="text-xs font-medium mb-1 text-foreground/80">Describe your injury or limitation <span className="text-red-500">*</span></p>
+                <p className="text-xs text-muted-foreground mb-2">e.g. &quot;left shoulder impingement&quot;, &quot;lower back pain&quot;, &quot;bad left knee&quot;</p>
+                <textarea
+                  value={goalContext}
+                  onChange={e => setGoalContext(e.target.value)}
+                  placeholder="Describe what hurts or what movements to avoid…"
+                  rows={3}
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 resize-none"
+                />
+              </div>
+            )}
+
+            {goal === 'mobility-flexibility' && (
+              <div className="mt-4">
+                <p className="text-xs font-medium mb-1 text-foreground/80">Where do you feel tightest? <span className="text-red-500">*</span></p>
+                <p className="text-xs text-muted-foreground mb-2">e.g. &quot;hamstrings and hips&quot;, &quot;shoulder internal rotation&quot;, &quot;thoracic spine&quot;</p>
+                <textarea
+                  value={goalContext}
+                  onChange={e => setGoalContext(e.target.value)}
+                  placeholder="Describe your problem areas or what you want to unlock…"
+                  rows={3}
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 resize-none"
+                />
+              </div>
+            )}
+
+            {goal === 'explosive-power' && (
+              <div className="mt-4">
+                <p className="text-xs font-medium mb-2 text-foreground/80">What activity are you training for? <span className="text-muted-foreground font-normal">(select all that apply)</span></p>
+                <div className="flex flex-col gap-1.5">
+                  {POWER_ACTIVITIES.map(activity => (
+                    <button
+                      key={activity}
+                      onClick={() => setPowerActivities(prev => prev.includes(activity) ? prev.filter(a => a !== activity) : [...prev, activity])}
+                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between ${
+                        powerActivities.includes(activity)
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-card text-foreground/70 hover:border-foreground/30'
+                      }`}
+                    >
+                      <span className="font-medium text-sm">{activity}</span>
+                      {powerActivities.includes(activity) && (
                         <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
