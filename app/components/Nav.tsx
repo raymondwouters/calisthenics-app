@@ -51,11 +51,17 @@ export default function Nav() {
 
   if (pathname === '/login') return null
 
-  // Logo-only during onboarding
+  // Logo + sign in during onboarding
   if (pathname === '/') {
     return (
-      <header className="h-14 bg-background flex items-center px-5">
+      <header className="h-14 bg-background flex items-center justify-between px-5">
         <span className="text-sm font-semibold text-foreground tracking-tight">A Fresh Training Week</span>
+        <button
+          onClick={() => router.push('/login')}
+          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Sign in
+        </button>
       </header>
     )
   }
