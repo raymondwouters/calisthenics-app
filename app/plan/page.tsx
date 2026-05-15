@@ -6,6 +6,8 @@ import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRe
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1554,6 +1556,198 @@ const FINISHING_MESSAGES = [
   'Almost there…',
 ]
 
+// ─── SignUpModal ──────────────────────────────────────────────────────────────
+
+interface SignUpModalProps {
+  plan: PlanResponse
+  inputs: GenerateRequest
+  onSuccess: (planId: string, userId: string, displayName: string | null) => void
+  onClose: () => void
+}
+
+function SignUpModal({ plan, inputs, onSuccess, onClose }: SignUpModalProps) {
+  const supabase = createSupabaseBrowser()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState(() => {
+    if (typeof window !== 'undefined') return sessionStorage.getItem('guest-email') ?? ''
+    return ''
+  })
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: name.trim() || undefined } },
+    })
+
+    if (signUpError || !data.user) {
+      setError(signUpError?.message ?? 'Sign-up failed. Please try again.')
+      setLoading(false)
+      return
+    }
+
+    const res = await fetch('/api/save-guest-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: data.user.id, plan, inputs }),
+    })
+
+    if (!res.ok) {
+      setError('Your account was created but we couldn\'t save your plan. Please sign in and try again.')
+      setLoading(false)
+      return
+    }
+
+    const { planId } = await res.json()
+    sessionStorage.setItem('plan-id', planId)
+    sessionStorage.setItem('plan-accepted', '1')
+    sessionStorage.removeItem('guest-email')
+    setSaved(true)
+    setLoading(false)
+    onSuccess(planId, data.user.id, name.trim() || (data.user.email ?? null))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0">
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 shadow-xl">
+        {saved ? (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold mb-1">Plan saved!</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">Check your email to confirm your account — your plan will be waiting when you sign in.</p>
+            <Button onClick={onClose} className="mt-5 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-10">Done</Button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-5">
+              <h2 className="text-lg font-bold">Save your plan</h2>
+              <p className="text-sm text-muted-foreground mt-1">Create a free account to save your program and track your progress.</p>
+            </div>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sm-name" className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Your name</Label>
+                <Input id="sm-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Raymond" autoComplete="name"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sm-email" className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Email</Label>
+                <Input id="sm-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" autoComplete="email"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sm-password" className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Password</Label>
+                <Input id="sm-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" autoComplete="new-password"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary" />
+              </div>
+              {error && <p className="text-destructive text-sm">{error}</p>}
+              <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-40 flex items-center justify-center gap-2 mt-1 h-10">
+                {loading ? (
+                  <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>Saving…</>
+                ) : 'Create account & save plan'}
+              </Button>
+              <button type="button" onClick={onClose} className="text-xs text-muted-foreground text-center mt-1 hover:text-foreground transition-colors">Maybe later</button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── OnboardingTooltip ────────────────────────────────────────────────────────
+
+interface OnboardingTooltipProps {
+  onDismiss: () => void
+}
+
+const TOOLTIP_STEPS = [
+  {
+    icon: (
+      <div className="flex gap-2 justify-center">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="w-10 h-10 rounded-full border-2 border-primary bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">{i}</div>
+        ))}
+      </div>
+    ),
+    title: 'Tap a bubble to log a set',
+    body: 'Each circle represents one set. Tap it after you finish — fill in your reps and you\'re done.',
+  },
+  {
+    icon: (
+      <div className="flex justify-center">
+        <div className="w-14 h-14 rounded-full border-4 border-emerald-500 bg-emerald-500/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      </div>
+    ),
+    title: 'Hit your target? You\'ll get a progression hint',
+    body: 'When you nail the top of your rep range across all sets, a green ring appears — time to level up.',
+  },
+  {
+    icon: (
+      <div className="flex justify-center">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+          <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+      </div>
+    ),
+    title: 'Use feedback to evolve your plan',
+    body: 'At the bottom of any day, tell the AI what\'s working or not. It\'ll rebuild the plan around your progress.',
+  },
+]
+
+function OnboardingTooltip({ onDismiss }: OnboardingTooltipProps) {
+  const [step, setStep] = useState(0)
+  const isLast = step === TOOLTIP_STEPS.length - 1
+  const current = TOOLTIP_STEPS[step]
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0">
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 shadow-xl">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex gap-1.5">
+            {TOOLTIP_STEPS.map((_, i) => (
+              <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-6 bg-primary' : 'w-1.5 bg-border'}`} />
+            ))}
+          </div>
+          <button onClick={onDismiss} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Skip</button>
+        </div>
+
+        <div className="mb-5">{current.icon}</div>
+        <h2 className="text-base font-bold mb-2 text-center">{current.title}</h2>
+        <p className="text-sm text-muted-foreground text-center leading-relaxed">{current.body}</p>
+
+        <div className="mt-6 flex gap-2">
+          {step > 0 && (
+            <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1 h-10 text-sm border-border bg-transparent hover:bg-secondary">Back</Button>
+          )}
+          {isLast ? (
+            <Button onClick={onDismiss} className="flex-1 h-10 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">Got it</Button>
+          ) : (
+            <Button onClick={() => setStep(s => s + 1)} className="flex-1 h-10 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">Next</Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PlanPage() {
   const router = useRouter()
   const [plan, setPlan] = useState<PlanResponse | null>(null)
@@ -1567,6 +1761,8 @@ export default function PlanPage() {
   const [prevPlan, setPrevPlan] = useState<PlanResponse | null>(null)
   const [planCreatedAt, setPlanCreatedAt] = useState<Date | null>(null)
   const [isAccepted, setIsAccepted] = useState(false)
+  const [showSignUpModal, setShowSignUpModal] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean; nextExercise: Exercise | null } | null>(null)
   const [highlightedExercise, setHighlightedExercise] = useState<string | null>(null)
   const nextExerciseAfterRestRef = useRef<Exercise | null>(null)
@@ -1923,6 +2119,15 @@ export default function PlanPage() {
     loadData()
   }, [router, loadKey])
 
+  // Show onboarding tooltip once when a new plan loads for the first time
+  useEffect(() => {
+    if (isLoadingData || !plan || isAccepted) return
+    if (typeof window === 'undefined') return
+    if (!localStorage.getItem('onboarding-seen')) {
+      setShowTooltip(true)
+    }
+  }, [isLoadingData, plan, isAccepted])
+
   const replaceExercise = (
     sessionIndex: number,
     blockIndex: number,
@@ -1991,6 +2196,10 @@ export default function PlanPage() {
   }
 
   const handleAcceptPlan = async () => {
+    if (!userId) {
+      setShowSignUpModal(true)
+      return
+    }
     if (plan && inputs && userId && !planId) {
       const supabase = createSupabaseBrowser()
       const { data } = await supabase
@@ -2076,19 +2285,33 @@ export default function PlanPage() {
               </button>
             </div>
           ) : (
-            <>
-              <div className="flex justify-center mb-6">
-                <svg className="animate-spin w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
+            <div className="w-full max-w-xs text-left">
+              <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-6">Building your program</p>
+              <div className="flex flex-col gap-4">
+                {GENERATING_MESSAGES.map((msg, i) => {
+                  const done = i < generatingMsgIdx
+                  const active = i === generatingMsgIdx
+                  return (
+                    <div key={i} className={`flex items-center gap-3 transition-opacity ${i > generatingMsgIdx ? 'opacity-30' : 'opacity-100'}`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                        done ? 'bg-primary/20' : active ? 'bg-primary/10 ring-2 ring-primary/40' : 'bg-secondary'
+                      }`}>
+                        {done ? (
+                          <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : active ? (
+                          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                        )}
+                      </div>
+                      <span className={`text-sm ${active ? 'text-foreground font-medium' : done ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>{msg}</span>
+                    </div>
+                  )
+                })}
               </div>
-              <h2 className="text-xl font-bold mb-3">Building your program</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed min-h-[2.5rem] transition-all">
-                {GENERATING_MESSAGES[generatingMsgIdx]}
-              </p>
-              <p className="text-xs text-muted-foreground/50 mt-4">This usually takes 2–5 minutes</p>
-            </>
+            </div>
           )}
         </div>
       </main>
@@ -2400,6 +2623,32 @@ export default function PlanPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Sign-up modal for guest users accepting plan */}
+      {showSignUpModal && plan && inputs && (
+        <SignUpModal
+          plan={plan}
+          inputs={inputs}
+          onSuccess={(id, uid, name) => {
+            setPlanId(id)
+            setUserId(uid)
+            setDisplayName(name)
+            setIsAccepted(true)
+            setShowSignUpModal(false)
+          }}
+          onClose={() => setShowSignUpModal(false)}
+        />
+      )}
+
+      {/* First-visit onboarding tooltip */}
+      {showTooltip && (
+        <OnboardingTooltip
+          onDismiss={() => {
+            localStorage.setItem('onboarding-seen', '1')
+            setShowTooltip(false)
+          }}
+        />
       )}
 
     </main>
