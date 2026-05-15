@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { GenerateRequest } from '@/lib/types'
@@ -54,7 +54,7 @@ const SKILL_OPTIONS = [
   'One-arm pull-up',
 ]
 
-export default function AccountPage() {
+function AccountPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const trainingSettingsRef = useRef<HTMLDivElement>(null)
@@ -477,5 +477,13 @@ export default function AccountPage() {
         </DialogContent>
       </Dialog>
     </main>
+  )
+}
+
+export default function AccountPageWrapper() {
+  return (
+    <Suspense>
+      <AccountPage />
+    </Suspense>
   )
 }
