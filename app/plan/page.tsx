@@ -2052,8 +2052,14 @@ export default function PlanPage() {
                 ? weeklyFeedbacks[0].reason.length > 120
                   ? weeklyFeedbacks[0].reason.slice(0, 120) + '…'
                   : weeklyFeedbacks[0].reason
-                : `${level} · ${days_per_week} days per week.`}
+                : `${level} · ${days_per_week} days per week · ${goal.toLowerCase()}`}
             </p>
+            <button
+              onClick={() => router.push('/account')}
+              className="mt-1 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
+            >
+              My training settings
+            </button>
           </div>
         )}
 
