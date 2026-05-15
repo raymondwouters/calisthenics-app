@@ -2062,6 +2062,9 @@ export default function PlanPage() {
           })}
         </div>
 
+        {!isAccepted && (
+          <p className="text-sm font-semibold text-foreground mb-4">{activeSession.label}</p>
+        )}
 
         {/* Active session content */}
         <div>
