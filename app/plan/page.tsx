@@ -438,6 +438,7 @@ function ExerciseCard({
   isPreview,
   hideAdjust = false,
   hideLogger = false,
+  isHighlighted = false,
 }: ExerciseCardProps) {
   const [adjusting, setAdjusting] = useState<'regression' | 'progression' | null>(null)
   const [limitMessage, setLimitMessage] = useState('')
