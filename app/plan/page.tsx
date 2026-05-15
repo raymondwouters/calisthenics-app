@@ -1874,7 +1874,7 @@ export default function PlanPage() {
   useEffect(() => {
     if (!isGenerating) return
     const t = setInterval(() => {
-      setGeneratingMsgIdx(i => (i + 1) % GENERATING_MESSAGES.length)
+      setGeneratingMsgIdx(i => Math.min(i + 1, GENERATING_MESSAGES.length - 1))
     }, 3000)
     return () => clearInterval(t)
   }, [isGenerating])
@@ -2311,6 +2311,7 @@ export default function PlanPage() {
                   )
                 })}
               </div>
+              <p className="text-xs text-muted-foreground/50 mt-8">This can take up to 5 minutes.</p>
             </div>
           )}
         </div>

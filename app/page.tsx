@@ -126,27 +126,16 @@ function HomeContent() {
       <div className="max-w-2xl mx-auto w-full px-5 sm:px-8 pt-10 pb-20">
 
         {/* Header */}
-        <div className="mb-10">
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Calisthenics</p>
-          <h1 className="text-2xl font-bold text-foreground">Tell me where you are —<br />I&apos;ll build your program.</h1>
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold text-foreground mb-3 leading-tight">Stop planning. Start training.</h1>
+          <p className="text-lg text-muted-foreground leading-relaxed">Adaptive calisthenics programming built around your level, equipment, and progress. Ready the moment you open the app.</p>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold text-foreground">Build your first training week.</h3>
         </div>
 
         <div className="flex flex-col gap-10">
-
-          {/* Email */}
-          <section>
-            <Label htmlFor="email" className="text-sm font-semibold text-foreground mb-1 block">Your email</Label>
-            <p className="text-xs text-muted-foreground mb-3">We&apos;ll save your plan here once you&apos;re done.</p>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary max-w-sm"
-            />
-          </section>
 
           {/* Level */}
           <section>
@@ -180,16 +169,15 @@ function HomeContent() {
                   <button
                     key={e.id}
                     onClick={() => !e.always && toggleEquipment(e.id)}
-                    className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border text-sm transition-all ${
+                    className={`flex items-center justify-between px-3 py-3 rounded-xl border text-sm transition-all ${
                       selected
                         ? 'border-primary bg-primary/10 text-foreground'
                         : 'border-border bg-card text-foreground/70 hover:border-foreground/30'
                     } ${e.always ? 'opacity-60 cursor-default' : ''}`}
                   >
-                    <span className="text-base leading-none">{e.icon}</span>
                     <span className="font-medium leading-tight text-left">{e.label}</span>
                     {selected && (
-                      <svg className="w-3.5 h-3.5 text-primary ml-auto shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-3.5 h-3.5 text-primary shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     )}
@@ -270,8 +258,23 @@ function HomeContent() {
 
         </div>
 
-        {/* Generate CTA */}
+        {/* Email */}
         <div className="mt-10">
+          <Label htmlFor="email" className="text-sm font-semibold text-foreground mb-1 block">Your email</Label>
+          <p className="text-xs text-muted-foreground mb-3">We&apos;ll save your plan here once you&apos;re done.</p>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:border-primary max-w-sm"
+          />
+        </div>
+
+        {/* Generate CTA */}
+        <div className="mt-6">
           <Button
             onClick={handleGenerate}
             disabled={!canGenerate}
