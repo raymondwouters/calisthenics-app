@@ -404,6 +404,7 @@ interface ExerciseCardProps {
   onUndone: () => void
   isPreview: boolean
   hideAdjust?: boolean
+  hideLogger?: boolean
 }
 
 function ExerciseCard({
@@ -424,6 +425,7 @@ function ExerciseCard({
   onUndone,
   isPreview,
   hideAdjust = false,
+  hideLogger = false,
 }: ExerciseCardProps) {
   const [adjusting, setAdjusting] = useState<'regression' | 'progression' | null>(null)
   const [limitMessage, setLimitMessage] = useState('')
@@ -751,8 +753,8 @@ function ExerciseCard({
         </div>
       )}
 
-      {/* Rep logger — hidden in preview mode */}
-      {!isPreview && (
+      {/* Rep logger — hidden in preview mode and during plan review */}
+      {!isPreview && !hideLogger && (
         <div className="flex flex-col gap-2 pt-1">
 
           {/* Set buttons row */}
@@ -1079,6 +1081,7 @@ interface BlockSectionProps {
   onUndone: () => void
   isPreview: boolean
   hideAdjust?: boolean
+  hideLogger?: boolean
 }
 
 function BlockSection({
@@ -1099,6 +1102,7 @@ function BlockSection({
   onUndone,
   isPreview,
   hideAdjust = false,
+  hideLogger = false,
 }: BlockSectionProps) {
   return (
     <div className="mb-5">
@@ -1126,6 +1130,7 @@ function BlockSection({
             onUndone={onUndone}
             isPreview={isPreview}
             hideAdjust={hideAdjust}
+            hideLogger={hideLogger}
           />
         ))}
       </div>
@@ -1879,13 +1884,6 @@ export default function PlanPage() {
     return (
       <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-5">
         <div className="text-center max-w-xs">
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-8">Calisthenics</p>
-          {/* Steps indicator — step 4 of 4 complete + generating */}
-          <div className="flex gap-1 mb-10 justify-center">
-            {[0, 1, 2, 3, 4].map(i => (
-              <div key={i} className={`h-1 w-10 rounded-full ${i < 4 ? 'bg-primary' : 'bg-primary/30'}`} />
-            ))}
-          </div>
           {generateError ? (
             <div className="flex flex-col items-center gap-4">
               <div className="text-center">
@@ -1919,6 +1917,7 @@ export default function PlanPage() {
               <p className="text-sm text-muted-foreground leading-relaxed min-h-[2.5rem] transition-all">
                 {GENERATING_MESSAGES[generatingMsgIdx]}
               </p>
+              <p className="text-xs text-muted-foreground/50 mt-4">This usually takes 2–5 minutes</p>
             </>
           )}
         </div>
@@ -1997,7 +1996,7 @@ export default function PlanPage() {
                 onClick={handleDiscardNewPlan}
                 className="mt-2 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
               >
-                Discard and keep previous plan
+                Discard, generate new plan
               </button>
             )}
           </div>
@@ -2058,6 +2057,16 @@ export default function PlanPage() {
                 <div className={`w-1 h-1 rounded-full transition-colors ${
                   isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
                 }`} />
+                {!isRest && (
+                  <span className="text-[9px] text-muted-foreground leading-none truncate w-full text-center px-0.5">
+                    {session.label.split(' ')[0]}
+                  </span>
+                )}
+                {!isRest && (
+                  <span className="text-[9px] text-muted-foreground/60 leading-none">
+                    {estimateDuration(session)}m
+                  </span>
+                )}
               </button>
             )
           })}
@@ -2088,8 +2097,9 @@ export default function PlanPage() {
               onSetLogged={handleSetLogged}
               onAdjusted={schedulePlanSave}
               onUndone={cancelPlanSave}
-              isPreview={!isAccepted || weekOffset >= 1 || weekIsFinished}
+              isPreview={weekOffset >= 1 || weekIsFinished}
               hideAdjust={isRestDay}
+              hideLogger={!isAccepted}
             />
           ))}
         </div>

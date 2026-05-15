@@ -73,11 +73,8 @@ export default function AccountPage() {
   const [goal, setGoal] = useState('')
   const [skills, setSkills] = useState<string[]>([])
   const [isDirty, setIsDirty] = useState(false)
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   const [planChangesText, setPlanChangesText] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState('')
 
   const [loading, setLoading] = useState(true)
 
@@ -159,40 +156,14 @@ export default function AccountPage() {
     setTimeout(() => setNameSaved(false), 2000)
   }
 
-  const handleApplySettings = () => {
-    if (isDirty || planChangesText.trim()) setShowConfirmDialog(true)
-  }
-
-  const handleGenerateWithSettings = async () => {
-    setShowConfirmDialog(false)
-    await generatePlan({ level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}), changes: planChangesText.trim() || undefined })
-  }
-
-  const handleGenerateNewPlan = async () => {
-    if (!planChangesText.trim() && !isDirty) return
-    await generatePlan({ level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}), changes: planChangesText.trim() || undefined })
-  }
-
-  const generatePlan = async (inputs: GenerateRequest) => {
-    setGenerating(true)
-    setError('')
-    try {
-      const res = await fetch('/api/generate-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputs),
-      })
-      if (!res.ok) throw new Error('Generation failed')
-      const data = await res.json()
-      sessionStorage.setItem('workout-plan', JSON.stringify(data))
-      sessionStorage.setItem('workout-inputs', JSON.stringify(inputs))
-      sessionStorage.removeItem('plan-id')
-      sessionStorage.removeItem('plan-accepted')
-      router.push('/plan')
-    } catch {
-      setError('Something went wrong. Please try again.')
-      setGenerating(false)
-    }
+  const handleUpdatePlan = () => {
+    const inputs: GenerateRequest = { level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}), changes: planChangesText.trim() || undefined }
+    sessionStorage.setItem('workout-inputs', JSON.stringify(inputs))
+    sessionStorage.setItem('plan-generating', '1')
+    sessionStorage.removeItem('workout-plan')
+    sessionStorage.removeItem('plan-id')
+    sessionStorage.removeItem('plan-accepted')
+    router.push('/plan')
   }
 
   const handleSignOut = async () => {
@@ -408,40 +379,12 @@ export default function AccountPage() {
 
             {(isDirty || planChangesText.trim()) && (
               <Button
-                onClick={handleApplySettings}
+                onClick={handleUpdatePlan}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold w-full"
               >
-                Generate new plan →
+                Update my plan →
               </Button>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Generate fresh plan (no changes) */}
-        <Card className="bg-card border-border mb-5">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-foreground text-base">Fresh start</CardTitle>
-            <CardDescription className="text-muted-foreground text-sm">
-              Generate a completely new plan with your current settings, ignoring any customization above.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && <p className="text-destructive text-sm mb-3">{error}</p>}
-            <Button
-              onClick={() => generatePlan({ level, equipment, daysPerWeek, goal, ...(skills.length ? { skills } : {}) })}
-              disabled={generating}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-2"
-            >
-              {generating ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Generating…
-                </>
-              ) : 'Generate fresh plan →'}
-            </Button>
           </CardContent>
         </Card>
 
@@ -484,33 +427,6 @@ export default function AccountPage() {
         </Card>
 
       </div>
-
-      {/* Confirm dialog */}
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="bg-popover border-border text-popover-foreground">
-          <DialogHeader>
-            <DialogTitle>Generate a new plan?</DialogTitle>
-            <DialogDescription>
-              Your training settings changed. Generate a fresh plan with these updated settings?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="ghost"
-              onClick={() => setShowConfirmDialog(false)}
-              className="text-muted-foreground hover:text-foreground hover:bg-secondary"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleGenerateWithSettings}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-            >
-              Yes, generate new plan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete account dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
