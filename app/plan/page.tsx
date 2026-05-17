@@ -1,6 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
@@ -2366,9 +2367,10 @@ export default function PlanPage() {
       {isAccepted && weekOffset === 0 && weekIsFinished && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Next week loads Sunday evening.
-            </p>
+            <div className="flex items-center justify-center gap-3">
+              <p className="text-sm text-muted-foreground">Next week loads Sunday evening.</p>
+              <Link href="/history" className="text-sm text-primary underline underline-offset-2">View updates</Link>
+            </div>
           </div>
         </div>
       )}

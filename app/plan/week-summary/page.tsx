@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { NextWeekPlanResponse, ProgressionAnalysis } from '@/lib/types'
@@ -150,9 +151,10 @@ export default function WeekSummaryPage() {
           </section>
         )}
 
-        <p className="text-sm text-muted-foreground text-center mt-6">
-          Next week loads Sunday evening.
-        </p>
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <p className="text-sm text-muted-foreground">Next week loads Sunday evening.</p>
+          <Link href="/history" className="text-sm text-primary underline underline-offset-2">View updates</Link>
+        </div>
       </div>
 
       {/* Sticky CTA bar */}
