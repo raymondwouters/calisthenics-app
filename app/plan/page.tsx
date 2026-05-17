@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback, WorkoutSummary, PersonalRecord } from '@/lib/types'
+import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -60,14 +60,6 @@ const EQUIPMENT_LABELS: Record<string, string> = {
   'full gym access': 'Full gym',
 }
 
-const FINISH_MESSAGES = [
-  "That's how it's done.",
-  "Another session in the books.",
-  "You showed up. That's everything.",
-  "Strong session.",
-  "Progress made.",
-  "Keep stacking sessions like this.",
-]
 
 const EMPTY_LOGS: SetLog[] = []
 
@@ -209,52 +201,6 @@ function formatPrevLog(log: SetLog | null | undefined): string {
   return '✓'
 }
 
-function computeWorkoutSummary(
-  session: Session,
-  todayLogs: Map<string, SetLog[]>,
-  prevDayLogs: Map<string, SetLog[]> | undefined,
-  startTime: Date | null,
-  weekLogsMap: Map<number, Map<string, Map<string, SetLog[]>>>
-): WorkoutSummary {
-  const allExercises = session.blocks.flatMap((b) => b.exercises)
-
-  const setsPlanned = allExercises.reduce((s, ex) => s + ex.sets, 0)
-  const setsCompleted = allExercises.reduce((s, ex) => s + (todayLogs.get(ex.name)?.length ?? 0), 0)
-
-  const totalReps = [...todayLogs.values()]
-    .flat()
-    .reduce((s, log) => s + (log.reps ?? log.duration_s ?? 0), 0)
-
-  const prevTotalReps = prevDayLogs
-    ? [...prevDayLogs.values()].flat().reduce((s, log) => s + (log.reps ?? log.duration_s ?? 0), 0)
-    : null
-  const repsDelta = prevTotalReps !== null ? totalReps - prevTotalReps : null
-
-  const durationMinutes = startTime ? Math.round((Date.now() - startTime.getTime()) / 60000) : 0
-
-  const personalRecords: PersonalRecord[] = []
-  for (const ex of allExercises) {
-    const todaySets = todayLogs.get(ex.name) ?? []
-    const todayBest = todaySets.reduce((m, s) => Math.max(m, s.reps ?? 0), 0)
-    if (todayBest === 0) continue
-
-    let allTimeBest = 0
-    for (const [, weekMap] of weekLogsMap) {
-      for (const [, dayMap] of weekMap) {
-        const sets = dayMap.get(ex.name) ?? []
-        const best = sets.reduce((m, s) => Math.max(m, s.reps ?? 0), 0)
-        if (best > allTimeBest) allTimeBest = best
-      }
-    }
-
-    if (todayBest > allTimeBest) {
-      personalRecords.push({ exerciseName: ex.name, reps: todayBest, previousBest: allTimeBest })
-    }
-  }
-
-  return { setsCompleted, setsPlanned, totalReps, durationMinutes, personalRecords, repsDelta }
-}
-
 // ─── RestTimerOverlay ─────────────────────────────────────────────────────────
 
 interface RestTimerOverlayProps {
@@ -361,56 +307,6 @@ function RestTimerMini({ remaining, total, onExpand, onDismiss }: {
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
-    </div>
-  )
-}
-
-// ─── WorkoutCompleteOverlay ───────────────────────────────────────────────────
-
-function WorkoutCompleteOverlay({ onDismiss }: { onDismiss: () => void }) {
-  const [drawn, setDrawn] = useState(false)
-  const [showMessage, setShowMessage] = useState(false)
-  const [message] = useState(() => FINISH_MESSAGES[Math.floor(Math.random() * FINISH_MESSAGES.length)])
-
-  useEffect(() => {
-    const t1 = setTimeout(() => setDrawn(true), 50)
-    const t2 = setTimeout(() => setShowMessage(true), 1000)
-    const t3 = setTimeout(() => onDismiss(), 3200)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
-  }, [onDismiss])
-
-  const r = 44
-  const circumference = 2 * Math.PI * r
-
-  return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-5">
-      <div className="relative w-32 h-32 flex items-center justify-center">
-        <svg className="w-full h-full absolute inset-0" viewBox="0 0 112 112">
-          <circle cx="56" cy="56" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-secondary" />
-          <circle
-            cx="56" cy="56" r={r}
-            fill="none" stroke="currentColor" strokeWidth="3"
-            className="text-primary" strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={drawn ? 0 : circumference}
-            style={{ transition: 'stroke-dashoffset 0.9s ease', transform: 'rotate(-90deg)', transformOrigin: '56px 56px' }}
-          />
-        </svg>
-        <svg
-          className="w-11 h-11 relative z-10 text-foreground"
-          style={{ opacity: drawn ? 1 : 0, transition: 'opacity 0.4s ease 0.7s' }}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round"
-        >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      </div>
-      <p
-        className="text-xl font-bold text-foreground"
-        style={{ opacity: showMessage ? 1 : 0, transition: 'opacity 0.5s ease' }}
-      >
-        {message}
-      </p>
     </div>
   )
 }
@@ -1742,10 +1638,6 @@ export default function PlanPage() {
   const [weekIsFinished, setWeekIsFinished] = useState(false)
   const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
 
-  const [showWorkoutComplete, setShowWorkoutComplete] = useState(false)
-  const [workoutSummary, setWorkoutSummary] = useState<WorkoutSummary | null>(null)
-  const workoutStartTimeRef = useRef<Date | null>(null)
-  const workoutCompletedDaysRef = useRef<Set<string>>(new Set())
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1807,27 +1699,6 @@ export default function PlanPage() {
     const t = setTimeout(() => setHighlightedExercise(null), 2000)
     return () => clearTimeout(t)
   }, [restTimer])
-
-  // Detect when all sets for the active day are logged
-  useEffect(() => {
-    if (weekOffset !== 0 || !plan) return
-    const session = plan.plan.sessions[activeDay] ?? plan.plan.sessions[0]
-    if (!session || session.type === 'rest') return
-    if (workoutCompletedDaysRef.current.has(session.day)) return
-
-    const allExercises = session.blocks.flatMap(b => b.exercises)
-    if (allExercises.length === 0) return
-
-    const logsForDay = allLogs.get(session.day) ?? new Map()
-    const allDone = allExercises.every(ex => (logsForDay.get(ex.name)?.length ?? 0) >= ex.sets)
-
-    if (allDone) {
-      workoutCompletedDaysRef.current.add(session.day)
-      const summary = computeWorkoutSummary(session, logsForDay, prevLogs.get(session.day), workoutStartTimeRef.current, weekLogsMap)
-      setWorkoutSummary(summary)
-      setShowWorkoutComplete(true)
-    }
-  }, [allLogs, activeDay, weekOffset, plan, prevLogs, weekLogsMap])
 
   // Rotate generating message every 3s while loading
   useEffect(() => {
@@ -2055,15 +1926,6 @@ export default function PlanPage() {
             setInputs(planRow.inputs as GenerateRequest)
             setPlanCreatedAt(registrationDate)
             setAllLogs(logsMap)
-            // Pre-populate so the completion animation doesn't fire for days already done before this session
-            for (const session of (planRow.plan as PlanResponse).plan.sessions) {
-              if (session.type !== 'workout') continue
-              const dayLogs = logsMap.get(session.day) ?? new Map()
-              const allExercises = session.blocks.flatMap((b: Block) => b.exercises)
-              if (allExercises.length > 0 && allExercises.every((ex: Exercise) => (dayLogs.get(ex.name)?.length ?? 0) >= ex.sets)) {
-                workoutCompletedDaysRef.current.add(session.day)
-              }
-            }
             setPrevLogs(prevLogsMap)
             if (prevPlanRow) setPrevPlan(prevPlanRow.plan as PlanResponse)
             setActiveDay(getInitialActiveDay((planRow.plan as PlanResponse).plan.sessions, new Set(logsMap.keys())))
@@ -2135,9 +1997,6 @@ export default function PlanPage() {
   }
 
   const updateLogs = (sessionDay: string, exerciseName: string, logs: SetLog[]) => {
-    if (logs.length > 0 && !workoutStartTimeRef.current) {
-      workoutStartTimeRef.current = new Date()
-    }
     setAllLogs(prev => {
       const next = new Map(prev)
       const dayLogs = new Map(next.get(sessionDay) ?? [])
@@ -2515,17 +2374,6 @@ export default function PlanPage() {
             </Button>
           </div>
         </div>
-      )}
-
-      {/* Workout complete overlay */}
-      {showWorkoutComplete && (
-        <WorkoutCompleteOverlay
-          onDismiss={() => {
-            setShowWorkoutComplete(false)
-            setWorkoutSummary(null)
-            workoutStartTimeRef.current = null
-          }}
-        />
       )}
 
       {/* Rest timer overlay */}
