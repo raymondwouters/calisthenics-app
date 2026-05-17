@@ -2367,9 +2367,9 @@ export default function PlanPage() {
       {isAccepted && weekOffset === 0 && weekIsFinished && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
-            <div className="flex items-center justify-center gap-3">
-              <p className="text-sm text-muted-foreground">Next week loads Sunday evening.</p>
-              <Link href="/history" className="text-sm text-primary underline underline-offset-2">View updates</Link>
+            <div className="flex items-center justify-center gap-1">
+              <p className="text-base text-muted-foreground">Next week loads Sunday evening.</p>
+              <Link href="/history" className="text-base text-primary underline underline-offset-2">View updates</Link>
             </div>
           </div>
         </div>

@@ -151,9 +151,9 @@ export default function WeekSummaryPage() {
           </section>
         )}
 
-        <div className="flex items-center justify-center gap-3 mt-6">
-          <p className="text-sm text-muted-foreground">Next week loads Sunday evening.</p>
-          <Link href="/history" className="text-sm text-primary underline underline-offset-2">View updates</Link>
+        <div className="flex items-center justify-center gap-1 mt-6">
+          <p className="text-base text-muted-foreground">Next week loads Sunday evening.</p>
+          <Link href="/history" className="text-base text-primary underline underline-offset-2">View updates</Link>
         </div>
       </div>
 
