@@ -1637,6 +1637,7 @@ export default function PlanPage() {
   const [weekLogsMap, setWeekLogsMap] = useState<Map<number, Map<string, Map<string, SetLog[]>>>>(new Map())
   const [weekSessionsMap, setWeekSessionsMap] = useState<Map<string, Session[]>>(new Map())
   const [weekIsFinished, setWeekIsFinished] = useState(false)
+  const [hasFeedbackThisWeek, setHasFeedbackThisWeek] = useState(false)
   const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
 
 
@@ -1848,6 +1849,7 @@ export default function PlanPage() {
                 .order('created_at', { ascending: false })
                 .limit(20),
             ])
+            setHasFeedbackThisWeek(!!weekFeedback)
             setWeekIsFinished(!weekOverridden && !!weekFeedback)
             if (feedbackHistory && feedbackHistory.length > 0) {
               setWeeklyFeedbacks(feedbackHistory as WeeklyFeedback[])
@@ -2376,7 +2378,7 @@ export default function PlanPage() {
       )}
 
       {/* Sticky bottom bar — finish week (Sunday only) */}
-      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && weekOffset === 0 && !weekIsFinished && (
+      {isAccepted && activeSession.day === 'Sunday' && allLogs.size > 0 && weekOffset === 0 && !hasFeedbackThisWeek && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-2 sm:py-4">
             <Button
