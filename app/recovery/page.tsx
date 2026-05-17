@@ -398,7 +398,7 @@ export default function RecoveryPage() {
               onClick={() => { setResult(null); setDescription('') }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
             >
-              ← Generate a new session
+              ← Build a new session
             </button>
           </div>
         )}

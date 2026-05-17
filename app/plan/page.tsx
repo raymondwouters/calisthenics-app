@@ -1564,7 +1564,7 @@ const TOOLTIP_STEPS = [
       </div>
     ),
     title: 'Use feedback to evolve your plan',
-    body: 'At the bottom of any day, tell the AI what\'s working or not. It\'ll rebuild the plan around your progress.',
+    body: 'At the bottom of any day, tell us what\'s working or not. It\'ll rebuild the plan around your progress.',
   },
 ]
 
@@ -2216,7 +2216,7 @@ export default function PlanPage() {
               onClick={handleDiscardNewPlan}
               className="mt-2 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
             >
-              Discard, generate new plan
+              Discard, build a new plan
             </button>
           </div>
         ) : (

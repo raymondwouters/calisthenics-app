@@ -7,7 +7,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
   title: "A Fresh Training Week — Build your plan",
-  description: "AI-powered personalized workout generator",
+  description: "Adaptive calisthenics training that builds your week for you.",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "A Fresh Training Week" },
 };

@@ -249,7 +249,7 @@ function AccountPage() {
         <Card ref={trainingSettingsRef} className={`bg-card border-border mb-5 transition-all${highlightTraining ? ' ring-2 ring-primary' : ''}`}>
           <CardHeader className="pb-4">
             <CardTitle className="text-foreground text-base">Training settings</CardTitle>
-            <CardDescription className="text-muted-foreground text-sm">Changing these will prompt you to generate a new plan.</CardDescription>
+            <CardDescription className="text-muted-foreground text-sm">Changing these will rebuild your plan around your new settings.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
 

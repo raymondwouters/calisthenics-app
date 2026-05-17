@@ -350,7 +350,7 @@ function HomeContent() {
             disabled={!canGenerate}
             className="w-full sm:w-auto h-11 px-8 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:opacity-30"
           >
-            Generate my plan
+            Build my training week
           </Button>
         </div>
 
