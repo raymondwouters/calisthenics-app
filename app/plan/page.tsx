@@ -2313,7 +2313,7 @@ export default function PlanPage() {
               onSetLogged={handleSetLogged}
               onAdjusted={schedulePlanSave}
               onUndone={cancelPlanSave}
-              isPreview={weekOffset >= 1 || weekIsFinished}
+              isPreview={weekOffset >= 1 || hasFeedbackThisWeek}
               hideAdjust={isRestDay}
               hideLogger={!isAccepted}
               highlightedExercise={highlightedExercise}
@@ -2322,7 +2322,7 @@ export default function PlanPage() {
         </div>
 
         {/* Session undo notice — shown after progression until dismissed or day changes */}
-        {sessionUndo && sessionUndo.sessionIndex === activeDay && weekOffset === 0 && !weekIsFinished && (
+        {sessionUndo && sessionUndo.sessionIndex === activeDay && weekOffset === 0 && !hasFeedbackThisWeek && (
           <div className="mt-6 flex items-center justify-between rounded-xl border border-border px-4 py-3">
             <p className="text-sm text-muted-foreground">Session updated with harder exercises.</p>
             <button
@@ -2338,7 +2338,7 @@ export default function PlanPage() {
         )}
 
         {/* Refine this day — only on accepted workout days, not when viewing previous week */}
-        {inputs && isAccepted && !isRestDay && weekOffset === 0 && !weekIsFinished && (
+        {inputs && isAccepted && !isRestDay && weekOffset === 0 && !hasFeedbackThisWeek && (
           <RefineDayForm
             session={activeSession}
             inputs={inputs}
@@ -2366,7 +2366,7 @@ export default function PlanPage() {
       )}
 
       {/* Sticky bottom bar — week finished nudge */}
-      {isAccepted && weekOffset === 0 && weekIsFinished && (
+      {isAccepted && weekOffset === 0 && hasFeedbackThisWeek && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
             <div className="flex items-center justify-center gap-1">
