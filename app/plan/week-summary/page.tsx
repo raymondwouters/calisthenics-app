@@ -150,8 +150,8 @@ export default function WeekSummaryPage() {
           </section>
         )}
 
-        <p className="text-xs text-muted-foreground text-center mt-6">
-          Next week loads Sunday evening · {Intl.DateTimeFormat().resolvedOptions().timeZone}
+        <p className="text-sm text-muted-foreground text-center mt-6">
+          Next week loads Sunday evening.
         </p>
       </div>
 

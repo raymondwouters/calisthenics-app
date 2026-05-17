@@ -2366,8 +2366,8 @@ export default function PlanPage() {
       {isAccepted && weekOffset === 0 && weekIsFinished && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4">
-            <p className="text-xs text-muted-foreground text-center">
-              Next week loads Sunday evening · {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            <p className="text-sm text-muted-foreground text-center">
+              Next week loads Sunday evening.
             </p>
           </div>
         </div>
