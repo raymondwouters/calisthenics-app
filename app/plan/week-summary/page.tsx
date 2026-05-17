@@ -149,6 +149,10 @@ export default function WeekSummaryPage() {
             </div>
           </section>
         )}
+
+        <p className="text-xs text-muted-foreground text-center mt-6">
+          Next week loads Sunday evening · {Intl.DateTimeFormat().resolvedOptions().timeZone}
+        </p>
       </div>
 
       {/* Sticky CTA bar */}
