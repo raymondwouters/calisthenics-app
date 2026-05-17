@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback, WorkoutSummary, PersonalRecord } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
@@ -68,6 +68,8 @@ const FINISH_MESSAGES = [
   "Progress made.",
   "Keep stacking sessions like this.",
 ]
+
+const EMPTY_LOGS: SetLog[] = []
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -365,103 +367,50 @@ function RestTimerMini({ remaining, total, onExpand, onDismiss }: {
 
 // ─── WorkoutCompleteOverlay ───────────────────────────────────────────────────
 
-function WorkoutCompleteOverlay({ summary, onDismiss }: { summary: WorkoutSummary; onDismiss: () => void }) {
-  const [phase, setPhase] = useState<'animation' | 'summary'>('animation')
+function WorkoutCompleteOverlay({ onDismiss }: { onDismiss: () => void }) {
   const [drawn, setDrawn] = useState(false)
+  const [showMessage, setShowMessage] = useState(false)
   const [message] = useState(() => FINISH_MESSAGES[Math.floor(Math.random() * FINISH_MESSAGES.length)])
 
   useEffect(() => {
     const t1 = setTimeout(() => setDrawn(true), 50)
-    const t2 = setTimeout(() => setPhase('summary'), 1600)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [])
+    const t2 = setTimeout(() => setShowMessage(true), 1000)
+    const t3 = setTimeout(() => onDismiss(), 3200)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [onDismiss])
 
   const r = 44
   const circumference = 2 * Math.PI * r
 
-  if (phase === 'animation') {
-    return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-5">
-        <div className="relative w-32 h-32 flex items-center justify-center">
-          <svg className="w-full h-full absolute inset-0" viewBox="0 0 112 112">
-            <circle cx="56" cy="56" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-secondary" />
-            <circle
-              cx="56" cy="56" r={r}
-              fill="none" stroke="currentColor" strokeWidth="3"
-              className="text-primary" strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={drawn ? 0 : circumference}
-              style={{ transition: 'stroke-dashoffset 0.9s ease', transform: 'rotate(-90deg)', transformOrigin: '56px 56px' }}
-            />
-          </svg>
-          <svg
-            className="w-11 h-11 relative z-10 text-foreground"
-            style={{ opacity: drawn ? 1 : 0, transition: 'opacity 0.4s ease 0.7s' }}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <p
-          className="text-lg font-bold text-foreground"
-          style={{ opacity: drawn ? 1 : 0, transition: 'opacity 0.4s ease 0.8s' }}
-        >
-          Workout complete
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-2xl bg-card border-t border-border rounded-t-3xl px-6 pt-6 pb-12 flex flex-col gap-5 animate-in slide-in-from-bottom-4 duration-300">
-        <div className="w-10 h-1 bg-border rounded-full mb-1 mx-auto" />
-        <div className="text-center">
-          <p className="text-3xl font-black text-foreground leading-tight">Done.</p>
-          <p className="text-muted-foreground mt-1 text-base">{message}</p>
-        </div>
-
-        <div className="grid grid-cols-3 py-4 border-t border-b border-border">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{summary.setsCompleted}/{summary.setsPlanned}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">sets</p>
-          </div>
-          <div className="text-center border-x border-border">
-            <p className="text-2xl font-bold text-primary">{summary.durationMinutes > 0 ? `${summary.durationMinutes}m` : '—'}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">duration</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{summary.totalReps}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {summary.repsDelta !== null
-                ? <span className={summary.repsDelta >= 0 ? 'text-emerald-600' : 'text-amber-500'}>{summary.repsDelta >= 0 ? '+' : ''}{summary.repsDelta} vs last</span>
-                : 'total reps'}
-            </p>
-          </div>
-        </div>
-
-        {summary.personalRecords.length > 0 && (
-          <div className="flex flex-col gap-2.5">
-            <p className="text-xs font-semibold tracking-widest text-amber-600 uppercase">New bests</p>
-            {summary.personalRecords.map(pr => (
-              <div key={pr.exerciseName} className="flex items-center justify-between">
-                <p className="text-sm text-foreground">{pr.exerciseName}</p>
-                <p className="text-sm font-semibold text-amber-600">
-                  {pr.reps} reps{pr.previousBest > 0 ? ` · was ${pr.previousBest}` : ''}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <Button
-          onClick={onDismiss}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base h-12 mt-1"
+    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-5">
+      <div className="relative w-32 h-32 flex items-center justify-center">
+        <svg className="w-full h-full absolute inset-0" viewBox="0 0 112 112">
+          <circle cx="56" cy="56" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-secondary" />
+          <circle
+            cx="56" cy="56" r={r}
+            fill="none" stroke="currentColor" strokeWidth="3"
+            className="text-primary" strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={drawn ? 0 : circumference}
+            style={{ transition: 'stroke-dashoffset 0.9s ease', transform: 'rotate(-90deg)', transformOrigin: '56px 56px' }}
+          />
+        </svg>
+        <svg
+          className="w-11 h-11 relative z-10 text-foreground"
+          style={{ opacity: drawn ? 1 : 0, transition: 'opacity 0.4s ease 0.7s' }}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
         >
-          Done
-        </Button>
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
       </div>
+      <p
+        className="text-xl font-bold text-foreground"
+        style={{ opacity: showMessage ? 1 : 0, transition: 'opacity 0.5s ease' }}
+      >
+        {message}
+      </p>
     </div>
   )
 }
@@ -523,7 +472,7 @@ interface ExerciseCardProps {
   isHighlighted?: boolean
 }
 
-function ExerciseCard({
+const ExerciseCard = memo(function ExerciseCard({
   exercise,
   level,
   equipment,
@@ -1179,6 +1128,16 @@ function ExerciseCard({
   )
 }
 
+, (prev, next) =>
+  prev.exercise === next.exercise &&
+  prev.initialLogs === next.initialLogs &&
+  prev.prevSetsData === next.prevSetsData &&
+  prev.isPreview === next.isPreview &&
+  prev.isHighlighted === next.isHighlighted &&
+  prev.weekNumber === next.weekNumber &&
+  prev.planId === next.planId
+)
+
 // ─── BlockSection ─────────────────────────────────────────────────────────────
 
 interface BlockSectionProps {
@@ -1241,7 +1200,7 @@ function BlockSection({
             planId={planId}
             userId={userId}
             weekNumber={weekNumber}
-            initialLogs={logsForDay.get(ex.name) ?? []}
+            initialLogs={logsForDay.get(ex.name) ?? EMPTY_LOGS}
             prevSetsData={prevLogsForDay.get(ex.name)}
             onReplace={(updated) => onReplaceExercise(i, updated)}
             onLogsChange={(logs) => onLogsChange(ex.name, logs)}
@@ -1985,17 +1944,17 @@ export default function PlanPage() {
               .limit(1)
               .single()
 
+            const registrationDate = new Date(firstPlanRow?.created_at ?? planRow.created_at)
+            const { weekNumber: currentWeekNumber, start: currWeekMonday } = getUserWeekInfo(registrationDate)
+
             const { data: logsData } = await supabase
               .from('exercise_logs')
-              .select('session_day, exercise_name, sets_data, logged_at')
+              .select('session_day, exercise_name, sets_data, logged_at, week_number')
               .eq('user_id', user.id)
               .order('logged_at', { ascending: false })
 
             const logsMap = new Map<string, Map<string, SetLog[]>>()
             const prevLogsMap = new Map<string, Map<string, SetLog[]>>()
-
-            const registrationDate = new Date(firstPlanRow?.created_at ?? planRow.created_at)
-            const { start: currWeekMonday } = getUserWeekInfo(registrationDate)
 
             const nextWeekLoadedAt = localStorage.getItem('next-week-loaded-at')
             const weekOverridden = nextWeekLoadedAt
@@ -2025,9 +1984,14 @@ export default function PlanPage() {
             if (logsData) {
               const allWeeksMap = new Map<number, Map<string, Map<string, SetLog[]>>>()
               ;[...logsData].reverse().forEach(log => {
-                const loggedAt = new Date(log.logged_at)
-                const logMonday = getLogWeekMonday(log.session_day, loggedAt)
-                const offset = Math.round((currWeekMonday.getTime() - logMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
+                const logWeekNumber = log.week_number as number | null
+                const offset = logWeekNumber != null
+                  ? currentWeekNumber - logWeekNumber
+                  : (() => {
+                      const loggedAt = new Date(log.logged_at)
+                      const logMonday = getLogWeekMonday(log.session_day, loggedAt)
+                      return Math.round((currWeekMonday.getTime() - logMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
+                    })()
                 if (offset < 0) return
                 if (!allWeeksMap.has(offset)) allWeeksMap.set(offset, new Map())
                 const dayMap = allWeeksMap.get(offset)!
@@ -2404,11 +2368,7 @@ export default function PlanPage() {
               {activeSession.day} · {activeSession.label}
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
-              {weeklyFeedbacks.length > 0
-                ? weeklyFeedbacks[0].reason.length > 120
-                  ? weeklyFeedbacks[0].reason.slice(0, 120) + '…'
-                  : weeklyFeedbacks[0].reason
-                : `${level} · ${days_per_week} days per week · ${goal.toLowerCase()}`}
+              {level} · {days_per_week} days per week · {goal.toLowerCase()}
             </p>
             <button
               onClick={() => router.push('/account?highlight=training-settings')}
@@ -2558,9 +2518,8 @@ export default function PlanPage() {
       )}
 
       {/* Workout complete overlay */}
-      {showWorkoutComplete && workoutSummary && (
+      {showWorkoutComplete && (
         <WorkoutCompleteOverlay
-          summary={workoutSummary}
           onDismiss={() => {
             setShowWorkoutComplete(false)
             setWorkoutSummary(null)

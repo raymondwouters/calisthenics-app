@@ -90,6 +90,26 @@ export default function Nav() {
         {/* Desktop inline nav */}
         <nav className="hidden sm:flex items-center gap-1 mr-2">
           <DesktopNavItem
+            label="History"
+            active={pathname === '/history'}
+            onClick={() => router.push('/history')}
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+          <DesktopNavItem
+            label="Recovery"
+            active={pathname === '/recovery'}
+            onClick={() => router.push('/recovery')}
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            }
+          />
+          <DesktopNavItem
             label="Account"
             active={pathname === '/account'}
             onClick={() => router.push('/account')}
@@ -153,6 +173,26 @@ export default function Nav() {
 
         {/* Nav links */}
         <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
+          <DrawerNavItem
+            label="History"
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+            active={pathname === '/history'}
+            onClick={() => navigate('/history')}
+          />
+          <DrawerNavItem
+            label="Recovery"
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            }
+            active={pathname === '/recovery'}
+            onClick={() => navigate('/recovery')}
+          />
           <DrawerNavItem
             label="Account"
             icon={
