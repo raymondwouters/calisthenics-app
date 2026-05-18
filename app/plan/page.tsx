@@ -78,6 +78,21 @@ function eachSide(reps: string) {
   return /\b(each|per)\s+(side|leg|arm|limb)\b/i.test(reps)
 }
 
+// ─── Workout session tracking ──────────────────────────────────────────────────
+
+type WorkoutSessionInfo = {
+  startedAt: string
+  endedAt: string | null
+  isComplete: boolean
+}
+
+function isAllSetsDone(session: Session, logs: Map<string, SetLog[]>): boolean {
+  return session.blocks.flatMap(b => b.exercises).every(ex => {
+    const expected = eachSide(ex.reps) ? ex.sets * 2 : ex.sets
+    return (logs.get(ex.name) ?? []).length >= expected
+  })
+}
+
 function parseTargetReps(reps: string): number | null {
   const rangeMatch = reps.match(/(\d+)-(\d+)/)
   if (rangeMatch) return parseInt(rangeMatch[2])
@@ -390,10 +405,11 @@ const ExerciseCard = memo(function ExerciseCard({
   hideLogger = false,
   isHighlighted = false,
 }: ExerciseCardProps) {
-  const [adjusting, setAdjusting] = useState<'regression' | 'progression' | null>(null)
+  const [adjusting, setAdjusting] = useState<'regression' | 'progression' | 'injury' | null>(null)
   const [limitMessage, setLimitMessage] = useState('')
   const [previousExercise, setPreviousExercise] = useState<Exercise | null>(null)
   const [undoCountdown, setUndoCountdown] = useState<number | null>(null)
+  const [showSwap, setShowSwap] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const isEachSide = eachSide(exercise.reps)
@@ -582,15 +598,15 @@ const ExerciseCard = memo(function ExerciseCard({
     schedulePersist(filledLogs)
   }
 
-  const adjust = async (direction: 'regression' | 'progression') => {
-    setAdjusting(direction)
+  const adjust = async (direction: 'regression' | 'progression', reason?: 'injury') => {
+    setAdjusting(reason === 'injury' ? 'injury' : direction)
     setLimitMessage('')
     setPreviousExercise(null)
     try {
       const res = await fetch('/api/adjust-exercise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exerciseName: exercise.name, direction, level, equipment, goal }),
+        body: JSON.stringify({ exerciseName: exercise.name, direction, level, equipment, goal, reason }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -975,49 +991,62 @@ const ExerciseCard = memo(function ExerciseCard({
         </div>
       )}
 
-      {/* Difficulty adjustment — hidden in preview/history mode and on stretch days */}
+      {/* Swap exercise — hidden in preview/history mode and on stretch days */}
       {!isPreview && !hideAdjust && (
         <div className="mt-2 pt-3 border-t border-border/50">
-          <p className="text-xs text-muted-foreground mb-2.5">How did this feel?</p>
-          <div className="flex gap-2">
+          {!showSwap ? (
             <button
-              onClick={() => adjust('regression')}
-              disabled={adjusting !== null}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
+              onClick={() => setShowSwap(true)}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             >
-              {adjusting === 'regression' ? (
-                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-              ) : <span className="text-base leading-none">↓</span>}
-              Too hard
+              Too hard or easy? Swap exercise
             </button>
-            <button
-              onClick={() => adjust('progression')}
-              disabled={adjusting !== null}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
-            >
-              {adjusting === 'progression' ? (
-                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-              ) : <span className="text-base leading-none">↑</span>}
-              Too easy
-            </button>
-          </div>
-          {limitMessage && (
-            <p className="text-xs text-amber-400 mt-2 leading-relaxed">{limitMessage}</p>
-          )}
-          {previousExercise && (
-            <button
-              onClick={handleUndo}
-              className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>↩</span>
-              Undo — back to {previousExercise.name}{undoCountdown !== null ? ` (${undoCountdown}s)` : ''}
-            </button>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-xs text-muted-foreground">Swap this exercise:</p>
+                <button
+                  onClick={() => setShowSwap(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex gap-2">
+                {([
+                  { label: 'Too hard', key: 'regression', dir: 'regression' as const, reason: undefined },
+                  { label: 'Injury', key: 'injury', dir: 'regression' as const, reason: 'injury' as const },
+                  { label: 'Too easy', key: 'progression', dir: 'progression' as const, reason: undefined },
+                ] as const).map(({ label, key, dir, reason: r }) => (
+                  <button
+                    key={key}
+                    onClick={() => adjust(dir, r)}
+                    disabled={adjusting !== null}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-full bg-secondary text-foreground/70 font-medium hover:bg-secondary/70 hover:text-foreground disabled:opacity-40 transition-all"
+                  >
+                    {adjusting === key ? (
+                      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                    ) : null}
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {limitMessage && (
+                <p className="text-xs text-amber-400 mt-2 leading-relaxed">{limitMessage}</p>
+              )}
+              {previousExercise && (
+                <button
+                  onClick={handleUndo}
+                  className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span>↩</span>
+                  Undo — back to {previousExercise.name}{undoCountdown !== null ? ` (${undoCountdown}s)` : ''}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1639,7 +1668,8 @@ export default function PlanPage() {
   const [weekIsFinished, setWeekIsFinished] = useState(false)
   const [hasFeedbackThisWeek, setHasFeedbackThisWeek] = useState(false)
   const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
-
+  const [workoutSessions, setWorkoutSessions] = useState<Map<string, WorkoutSessionInfo>>(new Map())
+  const [lastLoggedAt, setLastLoggedAt] = useState<Date | null>(null)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1676,6 +1706,49 @@ export default function PlanPage() {
       pendingSaveRef.current = null
     }
   }
+
+  const workoutSessionsKey = `workout-sessions-${getCalendarMonday(new Date()).toISOString().slice(0, 10)}`
+
+  const startWorkout = (sessionDay: string) => {
+    setWorkoutSessions(prev => {
+      if (prev.get(sessionDay)?.startedAt) return prev
+      const next = new Map(prev)
+      next.set(sessionDay, { startedAt: new Date().toISOString(), endedAt: null, isComplete: false })
+      return next
+    })
+  }
+
+  const endWorkout = (sessionDay: string) => {
+    setWorkoutSessions(prev => {
+      const existing = prev.get(sessionDay)
+      if (existing?.isComplete) return prev
+      const next = new Map(prev)
+      next.set(sessionDay, {
+        startedAt: existing?.startedAt ?? new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        isComplete: true,
+      })
+      return next
+    })
+  }
+
+  const resetWorkout = (sessionDay: string) => {
+    setWorkoutSessions(prev => {
+      const existing = prev.get(sessionDay)
+      if (!existing || existing.isComplete) return prev
+      const next = new Map(prev)
+      next.delete(sessionDay)
+      return next
+    })
+  }
+
+  // Persist workout sessions to localStorage whenever they change
+  useEffect(() => {
+    if (workoutSessions.size === 0) return
+    const obj: Record<string, WorkoutSessionInfo> = {}
+    workoutSessions.forEach((v, k) => { obj[k] = v })
+    localStorage.setItem(workoutSessionsKey, JSON.stringify(obj))
+  }, [workoutSessions, workoutSessionsKey])
 
   useEffect(() => {
     if (!restTimer) return
@@ -1719,6 +1792,33 @@ export default function PlanPage() {
     }, 3000)
     return () => clearInterval(t)
   }, [isFinishingWeek])
+
+  // Detect when all sets for the active day are done and end the workout
+  useEffect(() => {
+    if (!isAccepted || weekOffset !== 0) return
+    const activeSession_ = plan?.plan.sessions?.[activeDay]
+    if (!activeSession_ || activeSession_.type === 'rest') return
+    const dayLogs = allLogs.get(activeSession_.day)
+    if (!dayLogs || dayLogs.size === 0) return
+    const ws = workoutSessions.get(activeSession_.day)
+    if (ws?.isComplete) return
+    if (isAllSetsDone(activeSession_, dayLogs)) endWorkout(activeSession_.day)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allLogs])
+
+  // Auto-complete the active workout day after 1 hour of inactivity
+  useEffect(() => {
+    if (!lastLoggedAt) return
+    const activeSession_ = plan?.plan.sessions?.[activeDay]
+    if (!activeSession_ || activeSession_.type === 'rest') return
+    const ws = workoutSessions.get(activeSession_.day)
+    if (!ws?.startedAt || ws.isComplete) return
+    const elapsed = Date.now() - lastLoggedAt.getTime()
+    const delay = Math.max(0, 60 * 60 * 1000 - elapsed)
+    const t = setTimeout(() => endWorkout(activeSession_.day), delay)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastLoggedAt])
 
   // Kick off generation when isGenerating becomes true and inputs are available
   useEffect(() => {
@@ -1950,6 +2050,15 @@ export default function PlanPage() {
 
         router.replace('/')
       } finally {
+        // Load workout sessions from localStorage (keyed by current week Monday)
+        const sessionsKey = `workout-sessions-${getCalendarMonday(new Date()).toISOString().slice(0, 10)}`
+        const raw = localStorage.getItem(sessionsKey)
+        if (raw) {
+          try {
+            const obj = JSON.parse(raw) as Record<string, WorkoutSessionInfo>
+            setWorkoutSessions(new Map(Object.entries(obj)))
+          } catch { /* ignore corrupt data */ }
+        }
         setIsLoadingData(false)
       }
     }
@@ -2001,6 +2110,7 @@ export default function PlanPage() {
 
   const updateLogs = (sessionDay: string, exerciseName: string, logs: SetLog[]) => {
     setAllLogs(prev => {
+      const hadNoLogs = !prev.has(sessionDay) || prev.get(sessionDay)!.size === 0
       const next = new Map(prev)
       const dayLogs = new Map(next.get(sessionDay) ?? [])
       if (logs.length === 0) {
@@ -2010,9 +2120,12 @@ export default function PlanPage() {
       }
       if (dayLogs.size === 0) {
         next.delete(sessionDay)
+        resetWorkout(sessionDay)
       } else {
         next.set(sessionDay, dayLogs)
       }
+      if (hadNoLogs && logs.length > 0) startWorkout(sessionDay)
+      if (logs.length > 0) setLastLoggedAt(new Date())
       return next
     })
   }
@@ -2248,26 +2361,31 @@ export default function PlanPage() {
             const isActive = activeDay === i
             const isToday = weekOffset === 0 && todaySessionIdx === i
             const isDone = displayLogs.has(session.day)
+            const ws = workoutSessions.get(session.day)
+            const isInProgress = !!ws?.startedAt && !ws.isComplete
+            const isComplete = ws?.isComplete ?? false
             const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
             return (
               <button
                 key={i}
                 onClick={() => { setActiveDay(i); setSessionUndo(null) }}
                 className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
-                  isActive
+                  isActive || isInProgress
                     ? 'ring-2 ring-[var(--sage)] bg-background'
                     : 'ring-1 ring-border hover:bg-secondary/40'
                 }`}
               >
                 <span className={`text-[11px] font-bold tracking-wide ${
-                  isActive ? 'text-[var(--sage)]' : isDone ? 'text-foreground' : 'text-muted-foreground'
+                  isActive || isInProgress ? 'text-[var(--sage)]' : isDone || isComplete ? 'text-foreground' : 'text-muted-foreground'
                 }`}>
                   {abbr}
                 </span>
-                {isDone ? (
+                {isComplete || isDone ? (
                   <svg className="w-3 h-3 text-foreground/50" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
+                ) : isInProgress ? (
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--sage)] animate-pulse" />
                 ) : isRest ? (
                   <div className={`w-1.5 h-1.5 rounded-full border ${
                     isActive ? 'border-[var(--sage)]' : 'border-border'
@@ -2278,7 +2396,7 @@ export default function PlanPage() {
                   }`} />
                 )}
                 <div className={`w-1 h-1 rounded-full transition-colors ${
-                  isToday && !isDone ? 'bg-amber-400' : 'bg-transparent'
+                  isToday && !isDone && !isComplete ? 'bg-amber-400' : 'bg-transparent'
                 }`} />
               </button>
             )
@@ -2334,6 +2452,14 @@ export default function PlanPage() {
             >
               <span>↩</span> Undo
             </button>
+          </div>
+        )}
+
+        {/* Workout complete celebration */}
+        {isAccepted && !isRestDay && weekOffset === 0 && workoutSessions.get(activeSession.day)?.isComplete && (
+          <div className="mt-6 rounded-2xl bg-[var(--sage)]/10 border border-[var(--sage)]/20 px-5 py-4 text-center">
+            <p className="text-base font-bold text-foreground">Workout done — great job!</p>
+            <p className="text-sm text-muted-foreground mt-1">All sets completed.</p>
           </div>
         )}
 

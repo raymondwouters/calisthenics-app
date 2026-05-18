@@ -10,20 +10,25 @@ export interface AdjustRequest {
   level: string
   equipment: string[]
   goal: string
+  reason?: 'injury'
 }
 
 export async function POST(req: NextRequest) {
   const body: AdjustRequest = await req.json()
-  const { exerciseName, direction, level, equipment, goal } = body
+  const { exerciseName, direction, level, equipment, goal, reason } = body
 
   const directionLabel = direction === 'regression' ? 'easier (one step lower in the progression)' : 'harder (one step higher in the progression)'
+
+  const injuryContext = reason === 'injury'
+    ? `\nIMPORTANT: The user has an injury that prevents them from doing this exercise. Choose a safe alternative that avoids the same stress patterns and movement demands. Prioritise joint safety.\n`
+    : ''
 
   const userMessage = `
 The user has the following profile:
 - Level: ${level}
 - Equipment: ${equipment.join(', ')}
 - Goal: ${goal}
-
+${injuryContext}
 They are currently doing "${exerciseName}" but find it ${direction === 'regression' ? 'too hard' : 'too easy'}.
 
 Suggest the ${directionLabel} from the progression line for this exercise.
