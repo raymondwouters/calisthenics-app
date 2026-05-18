@@ -261,8 +261,8 @@ export default function HistoryPage() {
                           const dayLogs = week.logs.get(session.day)
                           const hasLogs = !!dayLogs && dayLogs.size > 0
                           return (
-                            <div className="border-t border-border">
-                              <div className="px-5 pt-4 pb-1 flex items-center justify-between">
+                            <div>
+                              <div className="px-5 pt-1 pb-1 flex items-center justify-between">
                                 <p className="text-sm font-bold text-foreground">{session.label || session.day}</p>
                                 {!hasLogs && <span className="text-xs text-muted-foreground/50">Not logged</span>}
                               </div>
