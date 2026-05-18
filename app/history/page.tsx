@@ -14,6 +14,12 @@ interface WeekLog {
   logs: Map<string, Map<string, SetLog[]>> // day → exercise → sets
 }
 
+const DAY_ABBR: Record<string, string> = {
+  Monday: 'MON', Tuesday: 'TUE', Wednesday: 'WED',
+  Thursday: 'THU', Friday: 'FRI', Saturday: 'SAT', Sunday: 'SUN',
+}
+const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
@@ -40,6 +46,7 @@ export default function HistoryPage() {
   const [weeks, setWeeks] = useState<WeekLog[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null)
+  const [activeDayByWeek, setActiveDayByWeek] = useState<Map<number, string>>(new Map())
 
   useEffect(() => {
     const supabase = createSupabaseBrowser()
@@ -156,13 +163,21 @@ export default function HistoryPage() {
         <div className="flex flex-col gap-4">
           {weeks.map(week => {
             const isExpanded = expandedWeek === week.weekNumber
-            const workoutDays = week.sessions?.filter(s => s.type === 'workout') ?? []
+            const workoutDays = (week.sessions?.filter(s => s.type === 'workout') ?? [])
+              .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day))
             const loggedDayCount = [...week.logs.keys()].length
 
             return (
               <div key={week.weekNumber} className="border border-border rounded-2xl overflow-hidden">
                 <button
-                  onClick={() => setExpandedWeek(isExpanded ? null : week.weekNumber)}
+                  onClick={() => {
+                    const next = isExpanded ? null : week.weekNumber
+                    setExpandedWeek(next)
+                    if (next !== null && !activeDayByWeek.has(week.weekNumber)) {
+                      const defaultDay = workoutDays.find(d => week.logs.has(d.day))?.day ?? workoutDays[0]?.day
+                      if (defaultDay) setActiveDayByWeek(prev => new Map(prev).set(week.weekNumber, defaultDay))
+                    }
+                  }}
                   className="w-full flex items-center justify-between px-5 py-4 bg-card hover:bg-secondary/30 transition-colors text-left"
                 >
                   <div>
@@ -209,59 +224,112 @@ export default function HistoryPage() {
                       )}
                     </div>
 
-                    {/* Workout days — shown when a snapshot is available */}
-                    {workoutDays.length > 0 ? workoutDays.map(session => {
-                      const dayLogs = week.logs.get(session.day)
-                      const hasLogs = !!dayLogs && dayLogs.size > 0
-
-                      return (
-                        <div key={session.day} className="px-5 py-4 border-b border-border last:border-b-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{session.day}</p>
-                              <p className="text-sm font-bold text-foreground">{session.label}</p>
-                            </div>
-                            {hasLogs ? (
-                              <svg className="w-4 h-4 text-[var(--sage)]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            ) : (
-                              <span className="text-xs text-muted-foreground/50">Not logged</span>
-                            )}
-                          </div>
-
-                          {hasLogs && (
-                            <div className="flex flex-col gap-2.5 mt-2">
-                              {session.blocks.flatMap(b => b.exercises).map((ex, i) => {
-                                const sets = dayLogs?.get(ex.name)
-                                if (!sets || sets.length === 0) return null
-                                return (
-                                  <div key={i} className="flex items-start justify-between gap-3">
-                                    <p className="text-sm text-foreground">{ex.name}</p>
-                                    <p className="text-sm text-muted-foreground shrink-0">{sets.map(formatSetLog).join(' · ')}</p>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
+                    {/* Day tabs + active day content — shown when a snapshot is available */}
+                    {workoutDays.length > 0 && (
+                      <>
+                        <div className="flex gap-2 px-5 py-3 border-b border-border">
+                          {workoutDays.map(session => {
+                            const isActive = (activeDayByWeek.get(week.weekNumber) ?? workoutDays[0]?.day) === session.day
+                            const hasLogs = week.logs.has(session.day) && week.logs.get(session.day)!.size > 0
+                            const abbr = DAY_ABBR[session.day] ?? session.day.slice(0, 2).toUpperCase()
+                            return (
+                              <button
+                                key={session.day}
+                                onClick={() => setActiveDayByWeek(prev => new Map(prev).set(week.weekNumber, session.day))}
+                                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
+                                  isActive ? 'ring-2 ring-[var(--sage)] bg-background' : 'ring-1 ring-border hover:bg-secondary/40'
+                                }`}
+                              >
+                                <span className={`text-[11px] font-bold tracking-wide ${
+                                  isActive ? 'text-[var(--sage)]' : 'text-muted-foreground'
+                                }`}>{abbr}</span>
+                                {hasLogs ? (
+                                  <svg className="w-3 h-3 text-foreground/50" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[var(--sage)]' : 'bg-muted-foreground/30'}`} />
+                                )}
+                              </button>
+                            )
+                          })}
                         </div>
-                      )
-                    }) : week.logs.size > 0 ? (
-                      /* No snapshot but logs exist — show logs grouped by day */
-                      [...week.logs.entries()].map(([day, exMap]) => (
-                        <div key={day} className="px-5 py-4 border-b border-border last:border-b-0">
-                          <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-2">{day}</p>
-                          <div className="flex flex-col gap-2.5">
-                            {[...exMap.entries()].map(([exName, sets], i) => (
+                        {(() => {
+                          const activeDay = activeDayByWeek.get(week.weekNumber) ?? workoutDays[0]?.day
+                          const session = workoutDays.find(s => s.day === activeDay)
+                          if (!session) return null
+                          const dayLogs = week.logs.get(session.day)
+                          const hasLogs = !!dayLogs && dayLogs.size > 0
+                          return (
+                            <div className="px-5 py-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <p className="text-sm font-bold text-foreground">{session.label}</p>
+                                {hasLogs ? (
+                                  <svg className="w-4 h-4 text-[var(--sage)]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground/50">Not logged</span>
+                                )}
+                              </div>
+                              {hasLogs && (
+                                <div className="flex flex-col gap-2.5">
+                                  {session.blocks.flatMap(b => b.exercises).map((ex, i) => {
+                                    const sets = dayLogs?.get(ex.name)
+                                    if (!sets || sets.length === 0) return null
+                                    return (
+                                      <div key={i} className="flex items-start justify-between gap-3">
+                                        <p className="text-sm text-foreground">{ex.name}</p>
+                                        <p className="text-sm text-muted-foreground shrink-0">{sets.map(formatSetLog).join(' · ')}</p>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </>
+                    )}
+
+                    {/* Fallback: no snapshot but logs exist — show tabs by day */}
+                    {workoutDays.length === 0 && week.logs.size > 0 && (() => {
+                      const sortedDays = [...week.logs.keys()].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+                      const activeDay = activeDayByWeek.get(week.weekNumber) ?? sortedDays[0]
+                      return (
+                        <>
+                          <div className="flex gap-2 px-5 py-3 border-b border-border">
+                            {sortedDays.map(day => {
+                              const isActive = activeDay === day
+                              return (
+                                <button
+                                  key={day}
+                                  onClick={() => setActiveDayByWeek(prev => new Map(prev).set(week.weekNumber, day))}
+                                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all ${
+                                    isActive ? 'ring-2 ring-[var(--sage)] bg-background' : 'ring-1 ring-border hover:bg-secondary/40'
+                                  }`}
+                                >
+                                  <span className={`text-[11px] font-bold tracking-wide ${isActive ? 'text-[var(--sage)]' : 'text-muted-foreground'}`}>
+                                    {DAY_ABBR[day] ?? day.slice(0, 3).toUpperCase()}
+                                  </span>
+                                  <svg className="w-3 h-3 text-foreground/50" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <div className="px-5 py-4 flex flex-col gap-2.5">
+                            {[...(week.logs.get(activeDay)?.entries() ?? [])].map(([exName, sets], i) => (
                               <div key={i} className="flex items-start justify-between gap-3">
                                 <p className="text-sm text-foreground">{exName}</p>
                                 <p className="text-sm text-muted-foreground shrink-0">{sets.map(formatSetLog).join(' · ')}</p>
                               </div>
                             ))}
                           </div>
-                        </div>
-                      ))
-                    ) : null}
+                        </>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
