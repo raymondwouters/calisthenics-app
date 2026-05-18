@@ -273,14 +273,29 @@ export default function HistoryPage() {
                                 )}
                               </div>
                               {hasLogs && (
-                                <div className="flex flex-col gap-2.5">
-                                  {session.blocks.flatMap(b => b.exercises).map((ex, i) => {
-                                    const sets = dayLogs?.get(ex.name)
-                                    if (!sets || sets.length === 0) return null
+                                <div className="flex flex-col gap-4">
+                                  {session.blocks.map((block, bi) => {
+                                    const loggedExercises = block.exercises.filter(ex => {
+                                      const sets = dayLogs?.get(ex.name)
+                                      return sets && sets.length > 0
+                                    })
+                                    if (loggedExercises.length === 0) return null
                                     return (
-                                      <div key={i} className="flex items-start justify-between gap-3">
-                                        <p className="text-sm text-foreground">{ex.name}</p>
-                                        <p className="text-sm text-muted-foreground shrink-0">{sets.map(formatSetLog).join(' · ')}</p>
+                                      <div key={bi}>
+                                        <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">
+                                          {block.type}
+                                        </p>
+                                        <div className="flex flex-col gap-2.5">
+                                          {loggedExercises.map((ex, i) => {
+                                            const sets = dayLogs?.get(ex.name)!
+                                            return (
+                                              <div key={i} className="flex items-start justify-between gap-3">
+                                                <p className="text-sm text-foreground">{ex.name}</p>
+                                                <p className="text-sm text-muted-foreground shrink-0">{sets.map(formatSetLog).join(' · ')}</p>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
                                       </div>
                                     )
                                   })}
