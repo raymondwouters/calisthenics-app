@@ -227,7 +227,7 @@ export default function HistoryPage() {
                     {/* Day tabs + active day content — shown when a snapshot is available */}
                     {workoutDays.length > 0 && (
                       <>
-                        <div className="flex gap-2 px-5 py-3 border-b border-border">
+                        <div className="flex gap-2 px-5 py-3">
                           {workoutDays.map(session => {
                             const isActive = (activeDayByWeek.get(week.weekNumber) ?? workoutDays[0]?.day) === session.day
                             const hasLogs = week.logs.has(session.day) && week.logs.get(session.day)!.size > 0
@@ -261,19 +261,13 @@ export default function HistoryPage() {
                           const dayLogs = week.logs.get(session.day)
                           const hasLogs = !!dayLogs && dayLogs.size > 0
                           return (
-                            <div className="px-5 py-4">
-                              <div className="flex items-center justify-between mb-3">
+                            <div className="border-t border-border">
+                              <div className="px-5 pt-4 pb-1 flex items-center justify-between">
                                 <p className="text-sm font-bold text-foreground">{session.label}</p>
-                                {hasLogs ? (
-                                  <svg className="w-4 h-4 text-[var(--sage)]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground/50">Not logged</span>
-                                )}
+                                {!hasLogs && <span className="text-xs text-muted-foreground/50">Not logged</span>}
                               </div>
                               {hasLogs && (
-                                <div className="flex flex-col gap-4">
+                                <div className="px-5 pb-4 pt-3 flex flex-col gap-4">
                                   {session.blocks.map((block, bi) => {
                                     const loggedExercises = block.exercises.filter(ex => {
                                       const sets = dayLogs?.get(ex.name)
