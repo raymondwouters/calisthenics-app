@@ -263,7 +263,7 @@ export default function HistoryPage() {
                           return (
                             <div className="border-t border-border">
                               <div className="px-5 pt-4 pb-1 flex items-center justify-between">
-                                <p className="text-sm font-bold text-foreground">{session.label}</p>
+                                <p className="text-sm font-bold text-foreground">{session.label || session.day}</p>
                                 {!hasLogs && <span className="text-xs text-muted-foreground/50">Not logged</span>}
                               </div>
                               {hasLogs && (
@@ -276,9 +276,11 @@ export default function HistoryPage() {
                                     if (loggedExercises.length === 0) return null
                                     return (
                                       <div key={bi}>
-                                        <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">
-                                          {block.type}
-                                        </p>
+                                        {block.type && (
+                                          <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-2">
+                                            {block.type}
+                                          </p>
+                                        )}
                                         <div className="flex flex-col gap-2.5">
                                           {loggedExercises.map((ex, i) => {
                                             const sets = dayLogs?.get(ex.name)!
