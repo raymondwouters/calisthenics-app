@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback } from '@/lib/types'
+import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback, HolidayConfig } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -1670,6 +1670,7 @@ export default function PlanPage() {
   const [weeklyFeedbacks, setWeeklyFeedbacks] = useState<WeeklyFeedback[]>([])
   const [workoutSessions, setWorkoutSessions] = useState<Map<string, WorkoutSessionInfo>>(new Map())
   const [lastLoggedAt, setLastLoggedAt] = useState<Date | null>(null)
+  const [isHolidayMode, setIsHolidayMode] = useState(false)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -1898,21 +1899,34 @@ export default function PlanPage() {
           setUserId(user.id)
           setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
 
+          // Check holiday mode before querying plan
+          let holidayActive = false
+          try {
+            const hRes = await fetch('/api/holiday-mode')
+            if (hRes.ok) {
+              const hCfg: HolidayConfig | null = await hRes.json()
+              holidayActive = hCfg?.is_active ?? false
+              setIsHolidayMode(holidayActive)
+            }
+          } catch { /* ignore */ }
+
           const { data: planRow } = await supabase
             .from('plans')
             .select('id, plan, inputs, created_at')
             .eq('user_id', user.id)
+            .eq('is_holiday', holidayActive)
             .order('created_at', { ascending: false })
             .limit(1)
             .single()
 
           if (planRow) {
-            // Use the oldest plan's created_at as program start so the week counter
+            // Use the oldest non-holiday plan's created_at as program start so the week counter
             // never resets to 1 after a new plan is generated.
             const { data: firstPlanRow } = await supabase
               .from('plans')
               .select('created_at')
               .eq('user_id', user.id)
+              .eq('is_holiday', false)
               .order('created_at', { ascending: true })
               .limit(1)
               .single()
@@ -2350,6 +2364,23 @@ export default function PlanPage() {
               className="mt-1 text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
             >
               My training settings
+            </button>
+          </div>
+        )}
+
+        {/* Holiday mode banner */}
+        {isHolidayMode && isAccepted && (
+          <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 mb-5">
+            <span className="text-lg">🏖️</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Holiday mode active</p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-500/80">Your normal plan is paused. Turn it off in settings when you&apos;re back.</p>
+            </div>
+            <button
+              onClick={() => router.push('/account')}
+              className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline shrink-0"
+            >
+              Settings
             </button>
           </div>
         )}

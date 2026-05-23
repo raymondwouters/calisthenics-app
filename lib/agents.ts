@@ -21,6 +21,22 @@ function sanitizeJson(raw: string): string {
 // ─── Agent 1: Progressions Analyst ───────────────────────────────────────────
 
 export async function analyseProgressions(userId: string): Promise<ProgressionAnalysis> {
+  // Skip progression analysis when user is in holiday mode
+  const { data: holidayRow } = await supabase
+    .from('holiday_config')
+    .select('is_active')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (holidayRow?.is_active) {
+    return {
+      ready_to_progress: [],
+      needs_regression: [],
+      plateaued: [],
+      insights: ['User is in holiday mode — progression paused until they return.'],
+    }
+  }
+
   const { data: logsData } = await supabase
     .from('exercise_logs')
     .select('exercise_name, sets_data, logged_at, session_day')
@@ -99,10 +115,22 @@ export async function generateNextWeekPlan(
   userId: string,
   analysis: ProgressionAnalysis,
 ): Promise<NextWeekPlanResponse & { rawPlan?: object; inputs?: GenerateRequest }> {
+  // Skip plan writing when user is in holiday mode
+  const { data: holidayRow } = await supabase
+    .from('holiday_config')
+    .select('is_active')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (holidayRow?.is_active) {
+    return { action: 'continue', reason: 'User is in holiday mode — normal plan progression paused.' }
+  }
+
   const { data: planData } = await supabase
     .from('plans')
     .select('plan, inputs')
     .eq('user_id', userId)
+    .eq('is_holiday', false)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

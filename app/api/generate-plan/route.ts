@@ -15,11 +15,11 @@ function inputHash(level: string, equipment: string[], daysPerWeek: number, goal
 }
 
 export async function POST(req: NextRequest) {
-  const body: GenerateRequest = await req.json()
-  const { level, equipment, daysPerWeek, goal, skills, goalContext, changes } = body
+  const body: GenerateRequest & { isHoliday?: boolean } = await req.json()
+  const { level, equipment, daysPerWeek, goal, skills, goalContext, changes, isHoliday } = body
 
   // Only use cache when there are no custom changes and no personalised goal context
-  if (!changes && !goalContext) {
+  if (!changes && !goalContext && !isHoliday) {
     const hash = inputHash(level, equipment, daysPerWeek, goal, skills)
     const { data: cached } = await supabase
       .from('cached_plans')
@@ -141,8 +141,8 @@ The JSON must follow this exact structure:
     }
   }
 
-  // Store in Supabase cache only for non-custom, non-personalised plans (fire and forget)
-  if (!changes && !goalContext) {
+  // Store in Supabase cache only for non-custom, non-personalised, non-holiday plans (fire and forget)
+  if (!changes && !goalContext && !isHoliday) {
     supabase
       .from('cached_plans')
       .insert({ input_hash: hash, plan: planData })

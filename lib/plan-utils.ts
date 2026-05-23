@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { ProgressionAnalysis } from '@/lib/types'
 
-export async function saveUserPlan(planData: object, inputs: object): Promise<string | null> {
+export async function saveUserPlan(planData: object, inputs: object, isHoliday = false): Promise<string | null> {
   try {
     const serverClient = await createSupabaseServer()
     const { data: { user } } = await serverClient.auth.getUser()
@@ -10,7 +10,7 @@ export async function saveUserPlan(planData: object, inputs: object): Promise<st
 
     const { data, error } = await supabase
       .from('plans')
-      .insert({ user_id: user.id, plan: planData, inputs })
+      .insert({ user_id: user.id, plan: planData, inputs, is_holiday: isHoliday })
       .select('id')
       .single()
 
@@ -24,11 +24,11 @@ export async function saveUserPlan(planData: object, inputs: object): Promise<st
   }
 }
 
-export async function saveUserPlanForUser(userId: string, planData: object, inputs: object): Promise<string | null> {
+export async function saveUserPlanForUser(userId: string, planData: object, inputs: object, isHoliday = false): Promise<string | null> {
   try {
     const { data, error } = await supabase
       .from('plans')
-      .insert({ user_id: userId, plan: planData, inputs })
+      .insert({ user_id: userId, plan: planData, inputs, is_holiday: isHoliday })
       .select('id')
       .single()
 

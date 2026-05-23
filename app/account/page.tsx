@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { HolidayConfig, HolidayGoal } from '@/lib/types'
 
 const LEVELS = ['Beginner', 'Early Intermediate', 'Intermediate', 'Advanced']
 
@@ -79,6 +81,15 @@ function AccountPage() {
 
   const [planChangesText, setPlanChangesText] = useState('')
 
+  const [holidayActive, setHolidayActive] = useState(false)
+  const [holidayEquipment, setHolidayEquipment] = useState<string[]>(['floor'])
+  const [holidayGoal, setHolidayGoal] = useState<HolidayGoal>('maintain-strength')
+  const [holidayOriginal, setHolidayOriginal] = useState<HolidayConfig | null>(null)
+  const [holidayLoading, setHolidayLoading] = useState(false)
+  const [holidaySaving, setHolidaySaving] = useState(false)
+  const [holidayDirty, setHolidayDirty] = useState(false)
+  const [holidayError, setHolidayError] = useState('')
+
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -105,6 +116,17 @@ function AccountPage() {
         setGoal(inputs.goal ?? '')
         setSkills(inputs.skills ?? [])
       }
+
+      // Load holiday config
+      fetch('/api/holiday-mode').then(r => r.json()).then((cfg: HolidayConfig | null) => {
+        if (cfg) {
+          setHolidayActive(cfg.is_active)
+          setHolidayEquipment(cfg.equipment)
+          setHolidayGoal(cfg.goal)
+          setHolidayOriginal(cfg)
+        }
+      }).catch(() => {})
+
       setLoading(false)
       if (searchParams.get('highlight') === 'training-settings') {
         setTimeout(() => {
@@ -155,6 +177,76 @@ function AccountPage() {
     const nextSkills = GOALS.find(go => go.id === g)?.requiresSkills ? skills : []
     if (!GOALS.find(go => go.id === g)?.requiresSkills) setSkills([])
     checkDirty(level, equipment, daysPerWeek, g, nextSkills)
+  }
+
+  const checkHolidayDirty = (eq: string[], g: HolidayGoal) => {
+    if (!holidayOriginal || !holidayActive) { setHolidayDirty(false); return }
+    const changed =
+      g !== holidayOriginal.goal ||
+      JSON.stringify([...eq].sort()) !== JSON.stringify([...holidayOriginal.equipment].sort())
+    setHolidayDirty(changed)
+  }
+
+  const toggleHolidayEquipment = (id: string) => {
+    if (id === 'floor') return
+    const next = holidayEquipment.includes(id)
+      ? holidayEquipment.filter(e => e !== id)
+      : [...holidayEquipment, id]
+    setHolidayEquipment(next)
+    checkHolidayDirty(next, holidayGoal)
+  }
+
+  const updateHolidayGoal = (g: HolidayGoal) => {
+    setHolidayGoal(g)
+    checkHolidayDirty(holidayEquipment, g)
+  }
+
+  const handleHolidayToggle = async (on: boolean) => {
+    setHolidayLoading(true)
+    setHolidayError('')
+    try {
+      const res = await fetch('/api/holiday-mode', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: on, equipment: holidayEquipment, goal: holidayGoal }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setHolidayActive(on)
+      setHolidayOriginal({ is_active: on, equipment: holidayEquipment, goal: holidayGoal })
+      setHolidayDirty(false)
+      if (on) {
+        sessionStorage.removeItem('workout-plan')
+        sessionStorage.removeItem('plan-id')
+        sessionStorage.removeItem('plan-accepted')
+        router.push('/plan?holiday=1')
+      }
+    } catch {
+      setHolidayError('Something went wrong. Please try again.')
+    } finally {
+      setHolidayLoading(false)
+    }
+  }
+
+  const handleSaveHolidaySettings = async () => {
+    setHolidaySaving(true)
+    setHolidayError('')
+    try {
+      const res = await fetch('/api/holiday-mode', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: true, equipment: holidayEquipment, goal: holidayGoal }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setHolidayOriginal({ is_active: true, equipment: holidayEquipment, goal: holidayGoal })
+      setHolidayDirty(false)
+      sessionStorage.removeItem('workout-plan')
+      sessionStorage.removeItem('plan-id')
+      sessionStorage.removeItem('plan-accepted')
+    } catch {
+      setHolidayError('Something went wrong. Please try again.')
+    } finally {
+      setHolidaySaving(false)
+    }
   }
 
   const handleSaveName = async () => {
@@ -396,6 +488,101 @@ function AccountPage() {
               </Button>
             )}
           </CardContent>
+        </Card>
+
+        {/* Holiday mode */}
+        <Card className="bg-card border-border mb-5">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-foreground text-base">Holiday mode</CardTitle>
+                <CardDescription className="text-muted-foreground text-sm mt-1">
+                  {holidayActive
+                    ? 'Active — your normal plan is paused while you\'re away.'
+                    : 'Temporarily swap to a holiday-friendly plan without affecting your normal program.'}
+                </CardDescription>
+              </div>
+              <Switch
+                checked={holidayActive}
+                disabled={holidayLoading}
+                onCheckedChange={handleHolidayToggle}
+                className="shrink-0 ml-4"
+              />
+            </div>
+          </CardHeader>
+
+          {holidayActive && (
+            <CardContent className="flex flex-col gap-6 pt-0">
+              <Separator />
+
+              <div>
+                <Label className="text-muted-foreground text-xs mb-3 block">Equipment available on holiday</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {EQUIPMENT_OPTIONS.map(e => (
+                    <div
+                      key={e.id}
+                      className="flex items-center gap-3 cursor-pointer"
+                      onClick={() => toggleHolidayEquipment(e.id)}
+                    >
+                      <Checkbox
+                        id={`heq-${e.id}`}
+                        checked={holidayEquipment.includes(e.id)}
+                        disabled={e.id === 'floor'}
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        onCheckedChange={() => toggleHolidayEquipment(e.id)}
+                      />
+                      <label
+                        htmlFor={`heq-${e.id}`}
+                        className={`text-sm cursor-pointer select-none ${
+                          e.id === 'floor' ? 'text-muted-foreground/50' : 'text-foreground/80'
+                        }`}
+                      >
+                        {e.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <Label className="text-muted-foreground text-xs mb-3 block">Holiday goal</Label>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { id: 'maintain-strength', label: 'Maintain strength', description: 'Keep your strength base during a short break' },
+                    { id: 'active-recovery', label: 'Active recovery', description: 'Minimal work, mobility focus, low fatigue' },
+                    { id: 'high-intensity-bodyweight', label: 'High intensity bodyweight', description: 'HIIT, high-rep conditioning with what you have' },
+                  ] as { id: HolidayGoal; label: string; description: string }[]).map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => updateHolidayGoal(g.id)}
+                      className={`flex flex-col items-start text-left px-4 py-3 rounded-xl border transition-all ${
+                        holidayGoal === g.id
+                          ? 'border-primary bg-primary/8'
+                          : 'border-border hover:border-foreground/30'
+                      }`}
+                    >
+                      <span className={`text-sm font-medium ${holidayGoal === g.id ? 'text-primary' : 'text-foreground'}`}>{g.label}</span>
+                      <span className="text-xs text-muted-foreground mt-0.5">{g.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {holidayError && <p className="text-destructive text-sm">{holidayError}</p>}
+
+              {holidayDirty && (
+                <Button
+                  onClick={handleSaveHolidaySettings}
+                  disabled={holidaySaving}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold w-full"
+                >
+                  {holidaySaving ? 'Generating holiday plan…' : 'Save & regenerate holiday plan →'}
+                </Button>
+              )}
+            </CardContent>
+          )}
         </Card>
 
         {/* Sign out */}

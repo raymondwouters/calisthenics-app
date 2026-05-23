@@ -111,6 +111,17 @@ export interface WeeklyFeedback {
   created_at: string
 }
 
+export type HolidayGoal =
+  | 'maintain-strength'
+  | 'active-recovery'
+  | 'high-intensity-bodyweight'
+
+export interface HolidayConfig {
+  is_active: boolean
+  equipment: string[]
+  goal: HolidayGoal
+}
+
 export interface PersonalRecord {
   exerciseName: string
   reps: number

@@ -24,11 +24,24 @@ export async function GET(req: NextRequest) {
   const userIds = [...new Set((activeUsers ?? []).map(r => r.user_id))] as string[]
   const results: Record<string, string> = {}
 
+  // Fetch all users currently in holiday mode so we can skip them
+  const { data: holidayRows } = await supabase
+    .from('holiday_config')
+    .select('user_id')
+    .eq('is_active', true)
+
+  const holidayUserIds = new Set((holidayRows ?? []).map(r => r.user_id as string))
+
   const weekStart = new Date()
   weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)) // Monday
   weekStart.setHours(0, 0, 0, 0)
 
   for (const userId of userIds) {
+    if (holidayUserIds.has(userId)) {
+      results[userId] = 'skipped_holiday'
+      continue
+    }
+
     const { data: existingFeedback } = await supabase
       .from('weekly_feedback')
       .select('id')
