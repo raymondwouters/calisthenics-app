@@ -34,6 +34,7 @@ Keep rest_seconds low (15–30s) — this is a recovery session, not strength tr
 
 Return ONLY valid JSON — no explanation, no markdown:
 {
+  "title": string (3-6 word title for this session, e.g. "Lower Back & Hip Relief"),
   "intro": string (one sentence describing the focus of this session),
   "exercises": [
     {
