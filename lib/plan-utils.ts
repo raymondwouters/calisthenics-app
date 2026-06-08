@@ -44,8 +44,8 @@ export async function saveUserPlanForUser(userId: string, planData: object, inpu
 
 export async function saveWeeklyFeedback(params: {
   userId: string
-  analysis: ProgressionAnalysis
-  action: 'new_plan' | 'continue'
+  analysis?: ProgressionAnalysis
+  action: 'new_plan' | 'continue' | 'holiday'
   reason: string
   weeks_to_continue?: number
   changes?: Array<{ exercise: string; from: string; to: string }>
@@ -53,7 +53,7 @@ export async function saveWeeklyFeedback(params: {
 }): Promise<void> {
   const { error } = await supabase.from('weekly_feedback').insert({
     user_id: params.userId,
-    analysis: params.analysis,
+    analysis: params.analysis ?? null,
     action: params.action,
     reason: params.reason,
     weeks_to_continue: params.weeks_to_continue ?? null,

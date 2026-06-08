@@ -37,6 +37,18 @@ export async function analyseProgressions(userId: string): Promise<ProgressionAn
     }
   }
 
+  // Check for recent holiday weeks (last 4 weekly_feedback rows)
+  const { data: recentFeedback } = await supabase
+    .from('weekly_feedback')
+    .select('action, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(4)
+
+  const recentHolidayWeeks = (recentFeedback ?? []).filter(f => f.action === 'holiday').length
+  const justReturnedFromHoliday = recentHolidayWeeks > 0 &&
+    (recentFeedback ?? [])[0]?.action !== 'holiday' // most recent week is NOT holiday (just returned)
+
   const { data: logsData } = await supabase
     .from('exercise_logs')
     .select('exercise_name, sets_data, logged_at, session_day')
@@ -82,6 +94,12 @@ export async function analyseProgressions(userId: string): Promise<ProgressionAn
     ? `Level: ${inputs.level}, Goal: ${inputs.goal}, Equipment: ${inputs.equipment.join(', ')}`
     : 'Unknown profile.'
 
+  const holidayContext = recentHolidayWeeks > 0
+    ? justReturnedFromHoliday
+      ? `IMPORTANT: The user just returned from ${recentHolidayWeeks} week(s) of holiday mode (lower-intensity training). They may have lost some strength and need a conservative reintroduction. Do NOT progress any exercise this week — instead, use insights to note they are returning from holiday and should rebuild their base before advancing. Consider regression for any exercises that look weaker than before.`
+      : `NOTE: The user is currently in or recently had holiday mode (${recentHolidayWeeks} week(s)). Log data may reflect lower-intensity holiday workouts and should not be used to judge normal progression readiness.`
+    : ''
+
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1200,
@@ -90,7 +108,7 @@ export async function analyseProgressions(userId: string): Promise<ProgressionAn
       content: `You are a fitness progression analyst. Analyse the user's logged workout data and identify trends.
 
 User profile: ${userProfile}
-
+${holidayContext ? `\n${holidayContext}\n` : ''}
 Logged sessions (most recent first):
 ${logSummary}
 

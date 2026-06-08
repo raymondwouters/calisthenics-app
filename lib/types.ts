@@ -102,7 +102,7 @@ export interface ProgressionLinesResponse {
 
 export interface WeeklyFeedback {
   id: string
-  action: 'new_plan' | 'continue'
+  action: 'new_plan' | 'continue' | 'holiday'
   reason: string
   weeks_to_continue?: number
   changes?: Array<{ exercise: string; from: string; to: string }>

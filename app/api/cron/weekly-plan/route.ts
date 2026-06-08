@@ -38,7 +38,12 @@ export async function GET(req: NextRequest) {
 
   for (const userId of userIds) {
     if (holidayUserIds.has(userId)) {
-      results[userId] = 'skipped_holiday'
+      await saveWeeklyFeedback({
+        userId,
+        action: 'holiday',
+        reason: 'You were in holiday mode this week — normal progression is paused.',
+      })
+      results[userId] = 'holiday'
       continue
     }
 

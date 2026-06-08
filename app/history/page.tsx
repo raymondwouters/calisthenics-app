@@ -187,7 +187,11 @@ export default function HistoryPage() {
                     <p className="text-base font-bold text-foreground mt-0.5">
                       {formatDate(week.weekStart)} – {formatDate(week.weekEnd)}
                     </p>
-                    {loggedDayCount > 0 && (
+                    {week.feedback.action === 'holiday' ? (
+                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 text-[10px] font-semibold tracking-wide">
+                        🌴 Holiday
+                      </span>
+                    ) : loggedDayCount > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {loggedDayCount} day{loggedDayCount !== 1 ? 's' : ''} logged
                       </p>
@@ -206,9 +210,16 @@ export default function HistoryPage() {
 
                     {/* Week update */}
                     <div className="px-5 py-4 border-b border-border bg-secondary/20">
-                      <p className="text-[11px] font-semibold tracking-widest text-primary uppercase mb-1.5">
-                        {week.feedback.action === 'new_plan' ? 'Plan updated after this week' : 'Plan continued'}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <p className="text-[11px] font-semibold tracking-widest text-primary uppercase">
+                          {week.feedback.action === 'new_plan' ? 'Plan updated after this week' : week.feedback.action === 'holiday' ? 'Holiday week' : 'Plan continued'}
+                        </p>
+                        {week.feedback.action === 'holiday' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 text-[10px] font-semibold tracking-wide">
+                            🌴 Holiday mode
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-foreground leading-relaxed">{week.feedback.reason}</p>
                       {week.feedback.action === 'new_plan' && week.feedback.changes && week.feedback.changes.length > 0 && (
                         <div className="mt-3 flex flex-col gap-1.5">

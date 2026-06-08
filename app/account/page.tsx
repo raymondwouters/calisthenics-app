@@ -214,11 +214,13 @@ function AccountPage() {
       setHolidayActive(on)
       setHolidayOriginal({ is_active: on, equipment: holidayEquipment, goal: holidayGoal })
       setHolidayDirty(false)
+      sessionStorage.removeItem('workout-plan')
+      sessionStorage.removeItem('plan-id')
+      sessionStorage.removeItem('plan-accepted')
       if (on) {
-        sessionStorage.removeItem('workout-plan')
-        sessionStorage.removeItem('plan-id')
-        sessionStorage.removeItem('plan-accepted')
         router.push('/plan?holiday=1')
+      } else {
+        router.push('/plan')
       }
     } catch {
       setHolidayError('Something went wrong. Please try again.')
