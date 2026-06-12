@@ -78,6 +78,11 @@ function eachSide(reps: string) {
   return /\b(each|per)\s+(side|leg|arm|limb)\b/i.test(reps)
 }
 
+function suggestsBand(exercise: { notes?: string; name?: string }): boolean {
+  const text = `${exercise.notes ?? ''} ${exercise.name ?? ''}`.toLowerCase()
+  return /resistance band|band[-\s]assist/i.test(text)
+}
+
 // ─── Workout session tracking ──────────────────────────────────────────────────
 
 type WorkoutSessionInfo = {
@@ -211,8 +216,10 @@ function formatPrevLog(log: SetLog | null | undefined): string {
   if (!log) return '✓'
   if (log.duration_s !== undefined) return `${log.duration_s}s`
   if (log.reps !== undefined) {
-    if (log.weight_kg) return `${log.reps}×${log.weight_kg}kg`
-    return String(log.reps)
+    let s = log.weight_kg ? `${log.reps}×${log.weight_kg}kg` : String(log.reps)
+    if (log.band_reps) s += `+${log.band_reps}rb`
+    else if (log.resistance_band) s += 'rb'
+    return s
   }
   return '✓'
 }
@@ -436,6 +443,9 @@ const ExerciseCard = memo(function ExerciseCard({
   const [showManual, setShowManual] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [weightValue, setWeightValue] = useState('')
+  const [bandAssisted, setBandAssisted] = useState(false)
+  const [bandRepsValue, setBandRepsValue] = useState('')
+  const isBandExercise = suggestsBand(exercise)
   const [timer, setTimer] = useState<TimerPhase>({ phase: 'idle' })
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -524,9 +534,13 @@ const ExerciseCard = memo(function ExerciseCard({
       if (existing) {
         setInputValue(existing.duration_s !== undefined ? String(existing.duration_s) : existing.reps !== undefined ? String(existing.reps) : '')
         setWeightValue(existing.weight_kg !== undefined ? String(existing.weight_kg) : '')
+        setBandAssisted(existing.resistance_band ?? false)
+        setBandRepsValue(existing.band_reps !== undefined ? String(existing.band_reps) : '')
       } else {
         setInputValue('')
         setWeightValue('')
+        setBandAssisted(false)
+        setBandRepsValue('')
       }
     }
   }
@@ -546,6 +560,8 @@ const ExerciseCard = memo(function ExerciseCard({
     setShowManual(false)
     setInputValue('')
     setWeightValue('')
+    setBandAssisted(false)
+    setBandRepsValue('')
   }
 
   function logReps() {
@@ -555,6 +571,14 @@ const ExerciseCard = memo(function ExerciseCard({
     const log: SetLog = { reps }
     const w = parseFloat(weightValue)
     if (!isNaN(w) && w > 0) log.weight_kg = w
+    if (isBandExercise) {
+      const br = parseInt(bandRepsValue)
+      if (!isNaN(br) && br > 0) {
+        log.band_reps = br
+      } else if (bandAssisted) {
+        log.resistance_band = true
+      }
+    }
     commitLog(selectedSetIndex, log)
     closePanel()
   }
@@ -562,8 +586,10 @@ const ExerciseCard = memo(function ExerciseCard({
   function setLogDisplay(log: SetLog): string {
     if (log.duration_s !== undefined) return `${log.duration_s}s`
     if (log.reps !== undefined) {
-      if (log.weight_kg) return `${log.reps}·${log.weight_kg}kg`
-      return String(log.reps)
+      let s = log.weight_kg ? `${log.reps}·${log.weight_kg}kg` : String(log.reps)
+      if (log.band_reps) s += `+${log.band_reps}rb`
+      else if (log.resistance_band) s += 'rb'
+      return s
     }
     return '✓'
   }
@@ -892,6 +918,40 @@ const ExerciseCard = memo(function ExerciseCard({
                       {setLogs[selectedSetIndex!] !== null ? 'Update' : 'Log'}
                     </button>
                   </div>
+                  {/* Band assistance controls — shown when exercise notes mention resistance band */}
+                  {isBandExercise && (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setBandAssisted(b => !b); setBandRepsValue('') }}
+                        className={`self-start flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                          bandAssisted
+                            ? 'bg-violet-500/15 border-violet-500/40 text-violet-400'
+                            : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                        }`}
+                      >
+                        <span className={`w-3 h-3 rounded-full border flex items-center justify-center ${bandAssisted ? 'border-violet-400 bg-violet-400' : 'border-muted-foreground'}`}>
+                          {bandAssisted && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </span>
+                        Band-assisted
+                      </button>
+                      {bandAssisted && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={99}
+                            value={bandRepsValue}
+                            onChange={e => setBandRepsValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') logReps() }}
+                            placeholder="Band reps"
+                            className="w-28 bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground text-center focus:outline-none focus:border-violet-500"
+                          />
+                          <p className="text-xs text-muted-foreground leading-tight">extra reps<br/>with band</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {setLogs[selectedSetIndex!] !== null && (
                     <button
                       onClick={() => removeLog(selectedSetIndex!)}
@@ -1146,17 +1206,37 @@ function BlockSection({
 
 // ─── RefineDayForm ────────────────────────────────────────────────────────────
 
+type RefineTiming = 'now' | 'next-week'
+type RefineSwapMode = 'keep-logged' | 'swap-mentioned-only'
+
 interface RefineDayFormProps {
   session: Session
   inputs: GenerateRequest
+  logsForDay: Map<string, SetLog[]>
   onRefined: (updated: Session) => void
+  onRefinedNextWeek: (updated: Session) => void
 }
 
-function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
+function RefineDayForm({ session, inputs, logsForDay, onRefined, onRefinedNextWeek }: RefineDayFormProps) {
   const [open, setOpen] = useState(false)
+  const [timing, setTiming] = useState<RefineTiming | null>(null)
+  const [swapMode, setSwapMode] = useState<RefineSwapMode | null>(null)
   const [feedback, setFeedback] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [savedNextWeek, setSavedNextWeek] = useState(false)
+
+  const completedExercises = Array.from(logsForDay.keys())
+  const hasLogs = completedExercises.length > 0
+
+  function reset() {
+    setOpen(false)
+    setTiming(null)
+    setSwapMode(null)
+    setFeedback('')
+    setError('')
+    setSavedNextWeek(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1164,16 +1244,34 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
     setLoading(true)
     setError('')
     try {
+      const effectiveSwapMode: RefineSwapMode | undefined =
+        timing === 'now' && hasLogs
+          ? (swapMode ?? 'keep-logged')
+          : undefined
+
       const res = await fetch('/api/refine-day', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session, inputs, feedback }),
+        body: JSON.stringify({
+          session,
+          inputs,
+          feedback,
+          completedExercises: effectiveSwapMode === 'keep-logged' ? completedExercises : undefined,
+          swapMode: effectiveSwapMode,
+        }),
       })
       if (!res.ok) throw new Error('Refinement failed')
       const data = await res.json()
+
+      if (timing === 'next-week') {
+        onRefinedNextWeek(data.session)
+        setSavedNextWeek(true)
+        setLoading(false)
+        return
+      }
+
       onRefined(data.session)
-      setFeedback('')
-      setOpen(false)
+      reset()
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -1197,10 +1295,104 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
     )
   }
 
+  // Saved for next week confirmation
+  if (savedNextWeek) {
+    return (
+      <div className="mt-6 border border-border rounded-xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-foreground">Saved for next week</p>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">Your changes have been applied to the plan. They&apos;ll be there when this day comes up next week.</p>
+        <button onClick={reset} className="text-xs text-muted-foreground hover:text-foreground transition-colors self-start underline underline-offset-2">Dismiss</button>
+      </div>
+    )
+  }
+
+  // Step 1: timing
+  if (timing === null) {
+    return (
+      <div className="mt-6 border border-border rounded-xl p-4">
+        <p className="text-xs font-semibold tracking-widest text-teal-400 uppercase mb-1">Refine this day</p>
+        <p className="text-sm text-muted-foreground mb-4">When should the changes apply?</p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setTiming('now')}
+            className="flex items-start gap-3 text-left px-4 py-3 rounded-xl border border-border hover:border-primary/40 hover:bg-secondary/40 transition-colors"
+          >
+            <div className="w-5 h-5 rounded-full border-2 border-primary/50 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Right now</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Apply to today&apos;s session immediately.</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setTiming('next-week')}
+            className="flex items-start gap-3 text-left px-4 py-3 rounded-xl border border-border hover:border-primary/40 hover:bg-secondary/40 transition-colors"
+          >
+            <div className="w-5 h-5 rounded-full border-2 border-border mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Next week</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Save the change for next week — today stays as-is.</p>
+            </div>
+          </button>
+        </div>
+        <button onClick={reset} className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+      </div>
+    )
+  }
+
+  // Step 2: if timing=now and there are logs, ask swap mode
+  if (timing === 'now' && hasLogs && swapMode === null) {
+    return (
+      <div className="mt-6 border border-border rounded-xl p-4">
+        <p className="text-xs font-semibold tracking-widest text-teal-400 uppercase mb-1">Refine this day</p>
+        <p className="text-sm text-muted-foreground mb-1">You&apos;ve already logged {completedExercises.length} exercise{completedExercises.length > 1 ? 's' : ''}. How should we handle that?</p>
+        <p className="text-xs text-muted-foreground mb-4 opacity-70">Logged: {completedExercises.join(', ')}</p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setSwapMode('keep-logged')}
+            className="flex items-start gap-3 text-left px-4 py-3 rounded-xl border border-border hover:border-primary/40 hover:bg-secondary/40 transition-colors"
+          >
+            <div className="w-5 h-5 rounded-full border-2 border-primary/50 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Keep completed, adjust the rest</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Logged exercises stay in place. Only upcoming exercises are changed.</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setSwapMode('swap-mentioned-only')}
+            className="flex items-start gap-3 text-left px-4 py-3 rounded-xl border border-border hover:border-primary/40 hover:bg-secondary/40 transition-colors"
+          >
+            <div className="w-5 h-5 rounded-full border-2 border-border mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Only swap exercises I mention</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Everything stays as-is except exercises you name in your feedback.</p>
+            </div>
+          </button>
+        </div>
+        <button onClick={() => setTiming(null)} className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors">← Back</button>
+      </div>
+    )
+  }
+
+  // Final step: feedback form
+  const subtitle = timing === 'next-week'
+    ? 'These changes will apply next time this day comes up.'
+    : swapMode === 'keep-logged'
+    ? 'Logged exercises are kept. Describe what to change in the remaining exercises.'
+    : swapMode === 'swap-mentioned-only'
+    ? 'Name the exercises you want swapped, and describe the change.'
+    : 'Describe what you want to change about today\'s session.'
+
   return (
     <div className="mt-6 border border-border rounded-xl p-4">
       <p className="text-xs font-semibold tracking-widest text-teal-400 uppercase mb-1">Refine this day</p>
-      <p className="text-sm text-muted-foreground mb-4">Describe what you want to change about today&apos;s session. Only this day will be updated.</p>
+      <p className="text-sm text-muted-foreground mb-4">{subtitle}</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <Textarea
           value={feedback}
@@ -1214,10 +1406,13 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => { setOpen(false); setFeedback('') }}
+            onClick={() => {
+              if (timing === 'now' && hasLogs) setSwapMode(null)
+              else setTiming(null)
+            }}
             className="text-muted-foreground hover:text-foreground hover:bg-secondary text-sm"
           >
-            Cancel
+            ← Back
           </Button>
           <Button
             type="submit"
@@ -1232,7 +1427,7 @@ function RefineDayForm({ session, inputs, onRefined }: RefineDayFormProps) {
                 </svg>
                 Refining…
               </>
-            ) : 'Refine →'}
+            ) : timing === 'next-week' ? 'Save for next week →' : 'Refine →'}
           </Button>
         </div>
       </form>
@@ -2499,7 +2694,22 @@ export default function PlanPage() {
           <RefineDayForm
             session={activeSession}
             inputs={inputs}
+            logsForDay={logsForActiveDay}
             onRefined={(updated) => replaceSession(activeDay, updated)}
+            onRefinedNextWeek={(updated) => {
+              // Update plan in Supabase only — don't update UI so today's session is undisturbed
+              if (!planId || !plan) return
+              const updatedPlan: PlanResponse = {
+                plan: {
+                  ...plan.plan,
+                  sessions: plan.plan.sessions.map((s, si) => si === activeDay ? updated : s),
+                },
+              }
+              const supabase = createSupabaseBrowser()
+              supabase.from('plans').update({ plan: updatedPlan }).eq('id', planId).then(({ error }) => {
+                if (error) console.error('Next-week refine save error:', error.message)
+              })
+            }}
           />
         )}
 

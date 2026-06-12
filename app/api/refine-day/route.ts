@@ -8,11 +8,24 @@ interface RefineDayRequest {
   session: Session
   inputs: GenerateRequest
   feedback: string
+  completedExercises?: string[]  // exercise names already logged this day
+  swapMode?: 'keep-logged' | 'swap-mentioned-only'
 }
 
 export async function POST(req: NextRequest) {
   const body: RefineDayRequest = await req.json()
-  const { session, inputs, feedback } = body
+  const { session, inputs, feedback, completedExercises, swapMode } = body
+
+  let constraintNote = ''
+  if (swapMode === 'keep-logged' && completedExercises && completedExercises.length > 0) {
+    constraintNote = `
+IMPORTANT: The user has already completed these exercises — do NOT change them, keep them exactly as-is and preserve their position in the session:
+${completedExercises.map(e => `- ${e}`).join('\n')}
+Only modify exercises that come after the completed ones.`
+  } else if (swapMode === 'swap-mentioned-only') {
+    constraintNote = `
+IMPORTANT: Only swap exercises that the user explicitly mentions by name in their feedback. Leave all other exercises unchanged.`
+  }
 
   const userMessage = `
 You are a calisthenics coach. Refine the following workout session based on user feedback.
@@ -26,6 +39,7 @@ Current session (${session.day} — ${session.label}):
 ${JSON.stringify(session, null, 2)}
 
 User feedback: "${feedback}"
+${constraintNote}
 
 Return an updated version of this session as a JSON object. Keep the same day, label, type, and block structure. Only adjust exercises within blocks as needed.
 

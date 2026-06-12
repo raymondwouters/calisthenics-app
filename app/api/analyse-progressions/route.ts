@@ -48,9 +48,16 @@ export async function POST() {
 
   const logSummary = workoutLogs.length > 0
     ? workoutLogs.map(log => {
-        const setsDesc = log.sets_data.map(s =>
-          s.reps !== undefined ? `${s.reps} reps` : `${s.duration_s}s`
-        ).join(', ')
+        const setsDesc = log.sets_data.map(s => {
+          if (s.duration_s !== undefined) return `${s.duration_s}s`
+          if (s.reps !== undefined) {
+            let desc = `${s.reps} reps`
+            if (s.band_reps) desc += ` + ${s.band_reps} band-assisted reps`
+            else if (s.resistance_band) desc += ' (band-assisted)'
+            return desc
+          }
+          return '✓'
+        }).join(', ')
         const date = new Date(log.logged_at).toISOString().slice(0, 10)
         return `- ${log.exercise_name} (${log.session_day}, ${date}): ${setsDesc}`
       }).join('\n')

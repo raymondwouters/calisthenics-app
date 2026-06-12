@@ -43,6 +43,8 @@ export interface SetLog {
   reps?: number
   duration_s?: number
   weight_kg?: number
+  resistance_band?: boolean  // whole set was band-assisted
+  band_reps?: number         // extra band-assisted reps after max clean reps
 }
 
 export interface ExerciseLog {
