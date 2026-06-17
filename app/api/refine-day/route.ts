@@ -41,17 +41,17 @@ ${JSON.stringify(session, null, 2)}
 User feedback: "${feedback}"
 ${constraintNote}
 
-Return an updated version of this session as a JSON object. Keep the same day, label, type, and block structure. Only adjust exercises within blocks as needed.
+Return an updated version of this session as a JSON object. Keep the same day, label, and type. Only adjust exercises within blocks as needed — do not change the block structure unless the user explicitly asks to.
 
 Return ONLY a valid JSON object matching this structure — no explanation, no markdown:
 {
   "session": {
     "day": string,
-    "type": "workout",
+    "type": "workout" | "rest",
     "label": string,
     "blocks": [
       {
-        "type": "warmup" | "skill" | "strength" | "accessory" | "core" | "cooldown",
+        "type": "warmup" | "skill" | "strength" | "accessory" | "core" | "cooldown" | "stretch",
         "exercises": [
           {
             "name": string,

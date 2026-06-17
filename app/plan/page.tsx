@@ -1228,6 +1228,7 @@ interface RefineDayFormProps {
 }
 
 function RefineDayForm({ session, inputs, logsForDay, onRefined, onRefinedNextWeek }: RefineDayFormProps) {
+  const isRestSession = session.type === 'rest'
   const [open, setOpen] = useState(false)
   const [timing, setTiming] = useState<RefineTiming | null>(null)
   const [swapMode, setSwapMode] = useState<RefineSwapMode | null>(null)
@@ -1407,7 +1408,10 @@ function RefineDayForm({ session, inputs, logsForDay, onRefined, onRefinedNextWe
         <Textarea
           value={feedback}
           onChange={e => setFeedback(e.target.value)}
-          placeholder="e.g. Swap the ring rows for pull-ups, and make the warm-up shorter…"
+          placeholder={isRestSession
+            ? 'e.g. Focus on hip flexors and thoracic mobility… or add some wrist prep…'
+            : 'e.g. Swap the ring rows for pull-ups, and make the warm-up shorter…'}
+
           rows={2}
           className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/50 focus-visible:border-primary resize-none"
         />
@@ -2726,8 +2730,8 @@ export default function PlanPage() {
           </div>
         )}
 
-        {/* Refine this day — only on accepted workout days, not when viewing previous week */}
-        {inputs && isAccepted && !isRestDay && weekOffset === 0 && !hasFeedbackThisWeek && (
+        {/* Refine this day — on accepted days (workout + rest), not when viewing previous week */}
+        {inputs && isAccepted && weekOffset === 0 && !hasFeedbackThisWeek && (
           <RefineDayForm
             session={activeSession}
             inputs={inputs}
