@@ -6,6 +6,107 @@ import { Textarea } from '@/components/ui/textarea'
 import { Exercise } from '@/lib/types'
 import { SavedRecoverySession } from '@/app/api/recovery-sessions/route'
 
+// ─── RefineRecoveryForm ───────────────────────────────────────────────────────
+
+function RefineRecoveryForm({
+  title,
+  intro,
+  exercises,
+  onRefined,
+}: {
+  title: string
+  intro: string
+  exercises: Exercise[]
+  onRefined: (updated: { title: string; intro: string; exercises: Exercise[] }) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!feedback.trim()) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/refine-recovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, intro, exercises, feedback }),
+      })
+      if (!res.ok) throw new Error('Refinement failed')
+      const data = await res.json()
+      onRefined(data)
+      setOpen(false)
+      setFeedback('')
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="mt-6">
+        <button
+          onClick={() => setOpen(true)}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Refine this session
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-6 border border-border rounded-xl p-4">
+      <p className="text-xs font-semibold tracking-widest text-teal-600 uppercase mb-1">Refine this session</p>
+      <p className="text-sm text-muted-foreground mb-4">Tell the coach what to focus on or adjust.</p>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <Textarea
+          value={feedback}
+          onChange={e => setFeedback(e.target.value)}
+          placeholder="e.g. Focus more on hip flexors, less on calves… or add some thoracic mobility work…"
+          rows={2}
+          className="bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-teal-600/50 focus-visible:border-teal-600 resize-none"
+          autoFocus
+        />
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        <div className="flex gap-2 justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => { setOpen(false); setFeedback(''); setError('') }}
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary text-sm"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={!feedback.trim() || loading}
+            className="bg-teal-600 hover:bg-teal-600/90 text-white font-semibold text-sm flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Refining…
+              </>
+            ) : 'Refine →'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 interface RecoveryResult {
   title: string
   intro: string
@@ -428,22 +529,27 @@ function RecoveryExerciseCard({
 // ─── WorkoutView ──────────────────────────────────────────────────────────────
 
 function WorkoutView({
-  title,
-  intro,
-  exercises,
+  title: initialTitle,
+  intro: initialIntro,
+  exercises: initialExercises,
   onBack,
   onSave,
   saving,
   saved,
+  allowRefine,
 }: {
   title: string
   intro: string
   exercises: Exercise[]
   onBack: () => void
-  onSave?: () => void
+  onSave?: (title: string, intro: string, exercises: Exercise[]) => void
   saving?: boolean
   saved?: boolean
+  allowRefine?: boolean
 }) {
+  const [title, setTitle] = useState(initialTitle)
+  const [intro, setIntro] = useState(initialIntro)
+  const [exercises, setExercises] = useState<Exercise[]>(initialExercises)
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; minimized: boolean; nextExercise: Exercise | null } | null>(null)
 
   useEffect(() => {
@@ -465,6 +571,12 @@ function WorkoutView({
     }
   }
 
+  function handleRefined(updated: { title: string; intro: string; exercises: Exercise[] }) {
+    setTitle(updated.title)
+    setIntro(updated.intro)
+    setExercises(updated.exercises)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="bg-card border border-border rounded-2xl p-5">
@@ -475,12 +587,21 @@ function WorkoutView({
       <div className="flex flex-col gap-4">
         {exercises.map((ex, i) => (
           <RecoveryExerciseCard
-            key={i}
+            key={`${ex.name}-${i}`}
             exercise={ex}
             onSetLogged={(restSeconds, nextEx) => handleSetLogged(restSeconds, nextEx)}
           />
         ))}
       </div>
+
+      {allowRefine && (
+        <RefineRecoveryForm
+          title={title}
+          intro={intro}
+          exercises={exercises}
+          onRefined={handleRefined}
+        />
+      )}
 
       <div className="flex items-center justify-between pt-2">
         <button
@@ -491,7 +612,7 @@ function WorkoutView({
         </button>
         {onSave && !saved && (
           <button
-            onClick={onSave}
+            onClick={() => onSave(title, intro, exercises)}
             disabled={saving}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border text-sm font-medium text-foreground/80 hover:border-teal-600/50 hover:text-teal-600 transition-colors disabled:opacity-50"
           >
@@ -595,18 +716,13 @@ export default function RecoveryPage() {
     }
   }
 
-  const handleSave = async () => {
-    if (view.type !== 'new-result') return
+  const handleSave = async (title: string, intro: string, exercises: Exercise[]) => {
     setSaving(true)
     try {
       const res = await fetch('/api/recovery-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: view.result.title,
-          intro: view.result.intro,
-          exercises: view.result.exercises,
-        }),
+        body: JSON.stringify({ title, intro, exercises }),
       })
       if (!res.ok) throw new Error()
       const saved: SavedRecoverySession = await res.json()
@@ -645,6 +761,7 @@ export default function RecoveryPage() {
             onSave={savedId ? undefined : handleSave}
             saving={saving}
             saved={!!savedId}
+            allowRefine
           />
         </div>
       </main>
