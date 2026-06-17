@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback, HolidayConfig } from '@/lib/types'
+import { PlanResponse, Session, Block, Exercise, SetLog, ExerciseLog, GenerateRequest, NextWeekPlanResponse, ProgressionAnalysis, WeeklyFeedback, HolidayConfig, LockWorkoutConfig } from '@/lib/types'
 import { createSupabaseBrowser } from '@/lib/supabase-browser'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -445,6 +445,7 @@ const ExerciseCard = memo(function ExerciseCard({
   const [weightValue, setWeightValue] = useState('')
   const [bandAssisted, setBandAssisted] = useState(false)
   const [bandRepsValue, setBandRepsValue] = useState('')
+  const bandRepsRef = useRef<HTMLInputElement>(null)
   const isBandExercise = suggestsBand(exercise)
   const [timer, setTimer] = useState<TimerPhase>({ phase: 'idle' })
   const [elapsed, setElapsed] = useState(0)
@@ -861,6 +862,7 @@ const ExerciseCard = memo(function ExerciseCard({
                     <input
                       ref={focusRef}
                       type="number"
+                      inputMode="numeric"
                       min={0}
                       max={9999}
                       value={inputValue}
@@ -868,6 +870,7 @@ const ExerciseCard = memo(function ExerciseCard({
                       onKeyDown={e => { if (e.key === 'Enter') logManualSeconds(); if (e.key === 'Escape') setShowManual(false) }}
                       placeholder="seconds"
                       className="flex-1 bg-secondary border border-border rounded-xl px-4 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary"
+                      style={{ fontSize: '16px' }}
                     />
                     <button onClick={logManualSeconds} className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm">
                       {setLogs[selectedSetIndex!] !== null ? 'Update' : 'Log'}
@@ -892,6 +895,7 @@ const ExerciseCard = memo(function ExerciseCard({
                     <input
                       ref={focusRef}
                       type="number"
+                      inputMode="numeric"
                       min={0}
                       max={999}
                       value={inputValue}
@@ -899,10 +903,12 @@ const ExerciseCard = memo(function ExerciseCard({
                       onKeyDown={e => { if (e.key === 'Enter') logReps(); if (e.key === 'Escape') closePanel() }}
                       placeholder="Reps"
                       className="flex-1 bg-secondary border border-border rounded-xl px-3 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary"
+                      style={{ fontSize: '16px' }}
                     />
                     <div className="relative">
                       <input
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         max={999}
                         step={0.5}
@@ -911,6 +917,7 @@ const ExerciseCard = memo(function ExerciseCard({
                         onKeyDown={e => { if (e.key === 'Enter') logReps() }}
                         placeholder="kg"
                         className="w-20 bg-secondary border border-border rounded-xl px-3 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary pr-7"
+                        style={{ fontSize: '16px' }}
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">kg</span>
                     </div>
@@ -923,7 +930,7 @@ const ExerciseCard = memo(function ExerciseCard({
                     <div className="flex flex-col gap-2">
                       <button
                         type="button"
-                        onClick={() => { setBandAssisted(b => !b); setBandRepsValue('') }}
+                        onClick={() => { setBandAssisted(b => { if (!b) setTimeout(() => bandRepsRef.current?.focus(), 50); return !b }); setBandRepsValue('') }}
                         className={`self-start flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
                           bandAssisted
                             ? 'bg-violet-500/15 border-violet-500/40 text-violet-400'
@@ -938,7 +945,9 @@ const ExerciseCard = memo(function ExerciseCard({
                       {bandAssisted && (
                         <div className="flex items-center gap-2">
                           <input
+                            ref={bandRepsRef}
                             type="number"
+                            inputMode="numeric"
                             min={0}
                             max={99}
                             value={bandRepsValue}
@@ -946,6 +955,7 @@ const ExerciseCard = memo(function ExerciseCard({
                             onKeyDown={e => { if (e.key === 'Enter') logReps() }}
                             placeholder="Band reps"
                             className="w-28 bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground text-center focus:outline-none focus:border-violet-500"
+                            style={{ fontSize: '16px' }}
                           />
                           <p className="text-xs text-muted-foreground leading-tight">extra reps<br/>with band</p>
                         </div>
@@ -1866,6 +1876,7 @@ export default function PlanPage() {
   const [workoutSessions, setWorkoutSessions] = useState<Map<string, WorkoutSessionInfo>>(new Map())
   const [lastLoggedAt, setLastLoggedAt] = useState<Date | null>(null)
   const [isHolidayMode, setIsHolidayMode] = useState(false)
+  const [isLockWorkout, setIsLockWorkout] = useState(false)
 
   const planRef = useRef(plan)
   useEffect(() => { planRef.current = plan }, [plan])
@@ -2094,14 +2105,21 @@ export default function PlanPage() {
           setUserId(user.id)
           setDisplayName(user.user_metadata?.display_name ?? user.email ?? null)
 
-          // Check holiday mode before querying plan
+          // Check holiday mode and lock workout before querying plan
           let holidayActive = false
           try {
-            const hRes = await fetch('/api/holiday-mode')
+            const [hRes, lRes] = await Promise.all([
+              fetch('/api/holiday-mode'),
+              fetch('/api/lock-workout'),
+            ])
             if (hRes.ok) {
               const hCfg: HolidayConfig | null = await hRes.json()
               holidayActive = hCfg?.is_active ?? false
               setIsHolidayMode(holidayActive)
+            }
+            if (lRes.ok) {
+              const lCfg: LockWorkoutConfig | null = await lRes.json()
+              setIsLockWorkout(lCfg?.is_active ?? false)
             }
           } catch { /* ignore */ }
 
@@ -2391,6 +2409,25 @@ export default function PlanPage() {
     setIsFinishingWeek(true)
     setFinishingMsgIdx(0)
     try {
+      if (isLockWorkout) {
+        // Skip AI progressions — same plan repeats next week
+        const lockedResult: NextWeekPlanResponse = {
+          action: 'continue',
+          reason: 'Workout is locked — same plan repeats next week.',
+          weeks_to_continue: 1,
+        }
+        const lockedAnalysis: ProgressionAnalysis = {
+          ready_to_progress: [],
+          needs_regression: [],
+          plateaued: [],
+          insights: ['Workout locked — progressions skipped.'],
+        }
+        sessionStorage.setItem('week-summary', JSON.stringify({ result: lockedResult, analysis: lockedAnalysis }))
+        localStorage.setItem('next-week-loaded-at', new Date().toISOString())
+        router.push('/plan/week-summary')
+        return
+      }
+
       const analysisRes = await fetch('/api/analyse-progressions', { method: 'POST' })
       if (!analysisRes.ok) {
         const body = await analysisRes.json().catch(() => ({ error: String(analysisRes.status) }))

@@ -124,6 +124,10 @@ export interface HolidayConfig {
   goal: HolidayGoal
 }
 
+export interface LockWorkoutConfig {
+  is_active: boolean
+}
+
 export interface PersonalRecord {
   exerciseName: string
   reps: number

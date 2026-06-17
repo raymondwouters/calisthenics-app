@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { HolidayConfig, HolidayGoal } from '@/lib/types'
+import { HolidayConfig, HolidayGoal, LockWorkoutConfig } from '@/lib/types'
 
 const LEVELS = ['Beginner', 'Early Intermediate', 'Intermediate', 'Advanced']
 
@@ -90,6 +90,10 @@ function AccountPage() {
   const [holidayDirty, setHolidayDirty] = useState(false)
   const [holidayError, setHolidayError] = useState('')
 
+  const [lockActive, setLockActive] = useState(false)
+  const [lockLoading, setLockLoading] = useState(false)
+  const [lockError, setLockError] = useState('')
+
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -125,6 +129,11 @@ function AccountPage() {
           setHolidayGoal(cfg.goal)
           setHolidayOriginal(cfg)
         }
+      }).catch(() => {})
+
+      // Load lock workout config
+      fetch('/api/lock-workout').then(r => r.json()).then((cfg: LockWorkoutConfig | null) => {
+        if (cfg) setLockActive(cfg.is_active)
       }).catch(() => {})
 
       setLoading(false)
@@ -248,6 +257,24 @@ function AccountPage() {
       setHolidayError('Something went wrong. Please try again.')
     } finally {
       setHolidaySaving(false)
+    }
+  }
+
+  const handleLockToggle = async (on: boolean) => {
+    setLockLoading(true)
+    setLockError('')
+    try {
+      const res = await fetch('/api/lock-workout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: on }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setLockActive(on)
+    } catch {
+      setLockError('Something went wrong. Please try again.')
+    } finally {
+      setLockLoading(false)
     }
   }
 
@@ -583,6 +610,33 @@ function AccountPage() {
                   {holidaySaving ? 'Generating holiday plan…' : 'Save & regenerate holiday plan →'}
                 </Button>
               )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Lock workout */}
+        <Card className="bg-card border-border mb-5">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-foreground text-base">Lock workout</CardTitle>
+                <CardDescription className="text-muted-foreground text-sm mt-1">
+                  {lockActive
+                    ? 'Active — your plan repeats each week without progression changes.'
+                    : 'Repeat the same plan each week. The AI progressions agent is skipped on Sunday.'}
+                </CardDescription>
+              </div>
+              <Switch
+                checked={lockActive}
+                disabled={lockLoading}
+                onCheckedChange={handleLockToggle}
+                className="shrink-0 ml-4"
+              />
+            </div>
+          </CardHeader>
+          {lockError && (
+            <CardContent className="pt-0">
+              <p className="text-destructive text-sm">{lockError}</p>
             </CardContent>
           )}
         </Card>
