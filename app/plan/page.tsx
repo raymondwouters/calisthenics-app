@@ -858,11 +858,12 @@ const ExerciseCard = memo(function ExerciseCard({
                   <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">
                     {panelTitle} · Target: {exercise.reps}
                   </p>
-                  <div className="flex items-center gap-3">
+                  <form onSubmit={e => { e.preventDefault(); logManualSeconds(); }} className="flex items-center gap-3 w-full">
                     <input
                       ref={focusRef}
                       type="number"
                       inputMode="numeric"
+                      enterKeyHint="done"
                       min={0}
                       max={9999}
                       value={inputValue}
@@ -872,16 +873,16 @@ const ExerciseCard = memo(function ExerciseCard({
                       className="flex-1 bg-secondary border border-border rounded-xl px-4 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary"
                       style={{ fontSize: '16px' }}
                     />
-                    <button onClick={logManualSeconds} className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                    <button type="submit" className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm">
                       {setLogs[selectedSetIndex!] !== null ? 'Update' : 'Log'}
                     </button>
                     {setLogs[selectedSetIndex!] !== null && (
-                      <button onClick={() => removeLog(selectedSetIndex!)} className="text-muted-foreground hover:text-red-400 text-xs px-1 transition-colors">
+                      <button type="button" onClick={() => removeLog(selectedSetIndex!)} className="text-muted-foreground hover:text-red-400 text-xs px-1 transition-colors">
                         Remove
                       </button>
                     )}
-                    <button onClick={() => setShowManual(false)} className="text-muted-foreground text-sm px-1">✕</button>
-                  </div>
+                    <button type="button" onClick={() => setShowManual(false)} className="text-muted-foreground text-sm px-1">✕</button>
+                  </form>
                 </>
               )}
 
@@ -891,11 +892,12 @@ const ExerciseCard = memo(function ExerciseCard({
                   <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">
                     {panelTitle}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <form onSubmit={e => { e.preventDefault(); logReps(); }} className="flex items-center gap-2 w-full">
                     <input
                       ref={focusRef}
                       type="number"
                       inputMode="numeric"
+                      enterKeyHint="done"
                       min={0}
                       max={999}
                       value={inputValue}
@@ -909,6 +911,7 @@ const ExerciseCard = memo(function ExerciseCard({
                       <input
                         type="number"
                         inputMode="decimal"
+                        enterKeyHint="done"
                         min={0}
                         max={999}
                         step={0.5}
@@ -921,10 +924,10 @@ const ExerciseCard = memo(function ExerciseCard({
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">kg</span>
                     </div>
-                    <button onClick={logReps} className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                    <button type="submit" className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm">
                       {setLogs[selectedSetIndex!] !== null ? 'Update' : 'Log'}
                     </button>
-                  </div>
+                  </form>
                   {/* Band assistance controls — shown when exercise notes mention resistance band */}
                   {isBandExercise && (
                     <div className="flex flex-col gap-2">
@@ -948,6 +951,7 @@ const ExerciseCard = memo(function ExerciseCard({
                             ref={bandRepsRef}
                             type="number"
                             inputMode="numeric"
+                            enterKeyHint="done"
                             min={0}
                             max={99}
                             value={bandRepsValue}
@@ -964,6 +968,7 @@ const ExerciseCard = memo(function ExerciseCard({
                   )}
                   {setLogs[selectedSetIndex!] !== null && (
                     <button
+                      type="button"
                       onClick={() => removeLog(selectedSetIndex!)}
                       className="text-xs text-muted-foreground hover:text-red-400 transition-colors self-center"
                     >
