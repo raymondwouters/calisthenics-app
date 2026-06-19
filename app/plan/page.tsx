@@ -2732,7 +2732,23 @@ export default function PlanPage() {
             session={activeSession}
             inputs={inputs}
             logsForDay={logsForActiveDay}
-            onRefined={(updated) => replaceSession(activeDay, updated)}
+            onRefined={(updated) => {
+              // Preserve original day string so workoutSessions/allLogs keyed by day still match
+              const sanitized = { ...updated, day: activeSession.day }
+              replaceSession(activeDay, sanitized)
+              // Persist the refined plan to Supabase (replaceSession only updates local state)
+              if (planId && plan) {
+                const updatedPlan: PlanResponse = {
+                  plan: {
+                    ...plan.plan,
+                    sessions: plan.plan.sessions.map((s, si) => si === activeDay ? sanitized : s),
+                  },
+                }
+                createSupabaseBrowser().from('plans').update({ plan: updatedPlan }).eq('id', planId).then(({ error }) => {
+                  if (error) console.error('Refine-day save error:', error.message)
+                })
+              }
+            }}
             onRefinedNextWeek={(updated) => {
               // Update plan in Supabase only — don't update UI so today's session is undisturbed
               if (!planId || !plan) return
