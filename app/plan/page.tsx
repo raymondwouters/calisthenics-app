@@ -861,13 +861,11 @@ const ExerciseCard = memo(function ExerciseCard({
                   <form onSubmit={e => { e.preventDefault(); logManualSeconds(); }} className="flex items-center gap-3 w-full">
                     <input
                       ref={focusRef}
-                      type="number"
+                      type="text"
                       inputMode="numeric"
                       enterKeyHint="done"
-                      min={0}
-                      max={9999}
                       value={inputValue}
-                      onChange={e => setInputValue(e.target.value)}
+                      onChange={e => setInputValue(e.target.value.replace(/[^0-9]/g, ''))}
                       onKeyDown={e => { if (e.key === 'Enter') logManualSeconds(); if (e.key === 'Escape') setShowManual(false) }}
                       placeholder="seconds"
                       className="flex-1 bg-secondary border border-border rounded-xl px-4 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary"
@@ -895,13 +893,11 @@ const ExerciseCard = memo(function ExerciseCard({
                   <form onSubmit={e => { e.preventDefault(); logReps(); }} className="flex items-center gap-2 w-full">
                     <input
                       ref={focusRef}
-                      type="number"
+                      type="text"
                       inputMode="numeric"
                       enterKeyHint="done"
-                      min={0}
-                      max={999}
                       value={inputValue}
-                      onChange={e => setInputValue(e.target.value)}
+                      onChange={e => setInputValue(e.target.value.replace(/[^0-9]/g, ''))}
                       onKeyDown={e => { if (e.key === 'Enter') logReps(); if (e.key === 'Escape') closePanel() }}
                       placeholder="Reps"
                       className="flex-1 bg-secondary border border-border rounded-xl px-3 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary"
@@ -909,14 +905,11 @@ const ExerciseCard = memo(function ExerciseCard({
                     />
                     <div className="relative">
                       <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
                         enterKeyHint="done"
-                        min={0}
-                        max={999}
-                        step={0.5}
                         value={weightValue}
-                        onChange={e => setWeightValue(e.target.value)}
+                        onChange={e => setWeightValue(e.target.value.replace(/[^0-9.]/g, ''))}
                         onKeyDown={e => { if (e.key === 'Enter') logReps() }}
                         placeholder="kg"
                         className="w-20 bg-secondary border border-border rounded-xl px-3 py-3 text-lg text-foreground text-center focus:outline-none focus:border-primary pr-7"
@@ -949,13 +942,11 @@ const ExerciseCard = memo(function ExerciseCard({
                         <div className="flex items-center gap-2">
                           <input
                             ref={bandRepsRef}
-                            type="number"
+                            type="text"
                             inputMode="numeric"
                             enterKeyHint="done"
-                            min={0}
-                            max={99}
                             value={bandRepsValue}
-                            onChange={e => setBandRepsValue(e.target.value)}
+                            onChange={e => setBandRepsValue(e.target.value.replace(/[^0-9]/g, ''))}
                             onKeyDown={e => { if (e.key === 'Enter') logReps() }}
                             placeholder="Band reps"
                             className="w-28 bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground text-center focus:outline-none focus:border-violet-500"
